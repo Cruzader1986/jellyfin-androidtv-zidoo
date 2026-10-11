@@ -81,6 +81,19 @@
                     android:textSize="18sp"
                     tools:text="1" />
 
+                <TextView
+                    android:id="@+id/lyrics"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:ellipsize="end"
+                    android:fontFamily="sans-serif-medium"
+                    android:maxLines="1"
+                    android:textColor="?attr/colorAccent"
+                    android:textSize="20sp"
+                    android:visibility="gone"
+                    tools:text="Current lyric line" />
+
             </LinearLayout>
 
             <LinearLayout
@@ -242,6 +255,21 @@
         android:paddingEnd="50dp"
         android:visibility="gone"
         >
+
+        <TextView
+            android:id="@+id/ssLyrics"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentStart="true"
+            android:layout_toStartOf="@+id/ssTime"
+            android:layout_marginEnd="30dp"
+            android:alpha="0.8"
+            android:fontFamily="sans-serif-medium"
+            android:maxLines="2"
+            android:ellipsize="end"
+            android:textSize="32sp"
+            android:visibility="gone"
+            tools:text="Current lyric line" />
 
         <TextView
             android:id="@+id/ssTime"

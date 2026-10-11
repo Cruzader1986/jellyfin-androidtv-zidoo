@@ -104,6 +104,10 @@ public class AudioNowPlayingActivity extends BaseActivity {
 
     private PopupMenu popupMenu;
 
+    private LyricsController mLyrics;
+    private TextView mLyricsView;
+    private TextView mSSLyricsView;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -129,6 +133,9 @@ public class AudioNowPlayingActivity extends BaseActivity {
         mSSAlbumSong = binding.ssAlbumSong;
         mSSQueueStatus = binding.ssQueueStatus;
         mSSUpNext = binding.ssUpNext;
+        mLyricsView = binding.lyrics;
+        mSSLyricsView = binding.ssLyrics;
+        mLyrics = new LyricsController(androidx.lifecycle.LifecycleOwnerKt.getLifecycleScope(this));
 
         mPlayPauseButton = binding.playPauseBtn;
         mPlayPauseButton.setContentDescription(getString(R.string.lbl_pause));
@@ -409,6 +416,8 @@ public class AudioNowPlayingActivity extends BaseActivity {
     private void loadItem() {
         dismissPopup();
         mBaseItem = mediaManager.getValue().getCurrentAudioItem();
+        if (mLyrics != null) mLyrics.load(mBaseItem != null ? mBaseItem.getId() : null);
+        updateLyrics(-1);
         if (mBaseItem != null) {
             updatePoster();
             updateInfo(mBaseItem);
@@ -469,7 +478,20 @@ public class AudioNowPlayingActivity extends BaseActivity {
         }
     }
 
+    private void updateLyrics(long time) {
+        String line = mLyrics != null && time >= 0 ? mLyrics.lineAt(time) : null;
+        if (mLyricsView != null) {
+            mLyricsView.setVisibility(line != null ? View.VISIBLE : View.GONE);
+            mLyricsView.setText(line != null ? line : "");
+        }
+        if (mSSLyricsView != null) {
+            mSSLyricsView.setVisibility(line != null ? View.VISIBLE : View.GONE);
+            mSSLyricsView.setText(line != null ? line : "");
+        }
+    }
+
     public void setCurrentTime(long time) {
+        updateLyrics(time);
         if (ssActive) {
             mSSTime.setText(TimeUtils.formatMillis(time) + " / " + mDisplayDuration);
         } else {
