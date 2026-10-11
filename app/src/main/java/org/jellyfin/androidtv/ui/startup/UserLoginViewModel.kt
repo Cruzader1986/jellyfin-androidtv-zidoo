@@ -25,7 +25,10 @@ import org.jellyfin.androidtv.auth.repository.ServerRepository
 import org.jellyfin.androidtv.util.sdk.forUser
 import org.jellyfin.sdk.Jellyfin
 import org.jellyfin.sdk.api.client.exception.ApiClientException
-import org.jellyfin.sdk.api.client.extensions.quickConnectApi
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonPrimitive
 import org.jellyfin.sdk.model.DeviceInfo
 import timber.log.Timber
 import java.util.UUID
@@ -80,13 +83,20 @@ class UserLoginViewModel(
 		quickConnectApi.deviceInfo = defaultDeviceInfo.forUser(UUID.randomUUID())
 
 		try {
-			val response by quickConnectApi.quickConnectApi.initiate()
+			val response = initiateQuickConnectCompat()
+			val secret = response.string("Secret")
+			val code = response.string("Code")
+			if (secret == null || code == null) {
+				_quickConnectState.emit(UnavailableQuickConnectState)
+				return
+			}
 
-			quickConnectSecret = response.secret
-			_quickConnectState.emit(PendingQuickConnectState(response.code))
+			quickConnectSecret = secret
+			_quickConnectState.emit(PendingQuickConnectState(code))
 		} catch (err: ApiClientException) {
 			Timber.e(err, "Unable to initiate QuickConnect")
 			_quickConnectState.emit(UnavailableQuickConnectState)
+			return
 		}
 
 		// Update every 5 seconds until QuickConnect is inactive or the view model is cancelled
@@ -108,18 +118,21 @@ class UserLoginViewModel(
 		val secret = quickConnectSecret ?: return false
 
 		try {
-			val state by quickConnectApi.quickConnectApi.connect(secret = secret)
+			val state = quickConnectApi.get<JsonObject>(
+				"/QuickConnect/Connect",
+				queryParameters = mapOf("secret" to secret),
+			).content
 
-			if (state.authenticated) {
+			if (state["Authenticated"]?.jsonPrimitive?.booleanOrNull == true) {
 				_quickConnectState.emit(ConnectedQuickConnectState)
 
-				authenticationRepository.authenticate(server, QuickConnectAuthenticateMethod(state.secret)).collect {
+				authenticationRepository.authenticate(server, QuickConnectAuthenticateMethod(state.string("Secret") ?: secret)).collect {
 					_loginState.emit(it)
 				}
 
 				return false
 			} else {
-				_quickConnectState.emit(PendingQuickConnectState(state.code))
+				_quickConnectState.emit(PendingQuickConnectState(state.string("Code") ?: return true))
 				return true
 			}
 		} catch (err: ApiClientException) {
@@ -128,6 +141,19 @@ class UserLoginViewModel(
 			return false
 		}
 	}
+
+	/**
+	 * Jellyfin 10.9 changed "initiate" to POST (GET was kept for a while as obsolete), try the new
+	 * route first. Responses are read as raw JSON so newer/older server fields can't break parsing.
+	 */
+	private suspend fun initiateQuickConnectCompat(): JsonObject = try {
+		quickConnectApi.post<JsonObject>("/QuickConnect/Initiate").content
+	} catch (err: ApiClientException) {
+		Timber.w(err, "POST QuickConnect/Initiate failed, trying GET")
+		quickConnectApi.get<JsonObject>("/QuickConnect/Initiate").content
+	}
+
+	private fun JsonObject.string(key: String) = this[key]?.jsonPrimitive?.contentOrNull
 
 	fun setServer(id: UUID?) {
 		_server.value = serverRepository.storedServers.value
