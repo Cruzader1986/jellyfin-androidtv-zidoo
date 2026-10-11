@@ -92,6 +92,7 @@ import org.jellyfin.apiclient.model.livetv.SeriesTimerInfoDto;
 import org.jellyfin.apiclient.model.livetv.TimerQuery;
 import org.jellyfin.apiclient.model.querying.EpisodeQuery;
 import org.jellyfin.apiclient.model.querying.ItemFields;
+import org.jellyfin.apiclient.model.querying.ItemFilter;
 import org.jellyfin.apiclient.model.querying.ItemQuery;
 import org.jellyfin.apiclient.model.querying.ItemsResult;
 import org.jellyfin.apiclient.model.querying.NextUpQuery;
@@ -654,7 +655,9 @@ public class FullDetailsActivity extends BaseActivity implements RecordingIndica
                 personMovies.setPersonIds(new String[] {mBaseItem.getId()});
                 personMovies.setRecursive(true);
                 personMovies.setIncludeItemTypes(new String[] {"Movie"});
-                personMovies.setSortBy(new String[] {ItemSortBy.SortName});
+                // Filmography order: newest first
+                personMovies.setSortBy(new String[] {"PremiereDate", "ProductionYear", "SortName"});
+                personMovies.setSortOrder(SortOrder.Descending);
                 ItemRowAdapter personMoviesAdapter = new ItemRowAdapter(this, personMovies, new CardPresenter(), adapter).setChunkSize(100);
                 addItemRow(adapter, personMoviesAdapter, 0, getString(R.string.lbl_movies));
 
@@ -667,9 +670,25 @@ public class FullDetailsActivity extends BaseActivity implements RecordingIndica
                 personSeries.setPersonIds(new String[] {mBaseItem.getId()});
                 personSeries.setRecursive(true);
                 personSeries.setIncludeItemTypes(new String[] {"Series"});
-                personSeries.setSortBy(new String[] {ItemSortBy.SortName});
+                personSeries.setSortBy(new String[] {"PremiereDate", "ProductionYear", "SortName"});
+                personSeries.setSortOrder(SortOrder.Descending);
                 ItemRowAdapter personSeriesAdapter = new ItemRowAdapter(this, personSeries, new CardPresenter(), adapter).setChunkSize(100);
                 addItemRow(adapter, personSeriesAdapter, 1, getString(R.string.lbl_tv_series));
+
+                // Their movies and shows you haven't seen yet
+                ItemQuery personUnwatched = new ItemQuery();
+                personUnwatched.setFields(new ItemFields[]{
+                        ItemFields.PrimaryImageAspectRatio,
+                        ItemFields.ChildCount
+                });
+                personUnwatched.setPersonIds(new String[] {mBaseItem.getId()});
+                personUnwatched.setRecursive(true);
+                personUnwatched.setIncludeItemTypes(new String[] {"Movie", "Series"});
+                personUnwatched.setFilters(new ItemFilter[] {ItemFilter.IsUnplayed});
+                personUnwatched.setSortBy(new String[] {"PremiereDate", "ProductionYear", "SortName"});
+                personUnwatched.setSortOrder(SortOrder.Descending);
+                ItemRowAdapter personUnwatchedAdapter = new ItemRowAdapter(this, personUnwatched, new CardPresenter(), adapter).setChunkSize(100);
+                addItemRow(adapter, personUnwatchedAdapter, 3, getString(R.string.lbl_not_watched_yet));
 
                 ItemQuery personEpisodes = new ItemQuery();
                 personEpisodes.setFields(new ItemFields[]{
