@@ -659,4 +659,5 @@
     <string name="pref_theme_music_description">Play the theme song on movie and series details screens</string>
     <string name="pref_featured_banner">Featured banner on home</string>
     <string name="pref_featured_banner_description">Rotating random movies and shows at the top of the home screen</string>
+    <string name="lbl_collection">Collection</string>
 </resources>

@@ -82,6 +82,7 @@ import org.jellyfin.apiclient.interaction.ApiClient;
 import org.jellyfin.apiclient.interaction.EmptyResponse;
 import org.jellyfin.apiclient.interaction.Response;
 import org.jellyfin.apiclient.model.dto.BaseItemDto;
+import org.jellyfin.apiclient.model.entities.SortOrder;
 import org.jellyfin.apiclient.model.dto.BaseItemType;
 import org.jellyfin.apiclient.model.dto.MediaSourceInfo;
 import org.jellyfin.apiclient.model.dto.UserItemDataDto;
@@ -547,6 +548,30 @@ public class FullDetailsActivity extends BaseActivity implements RecordingIndica
         row.Retrieve();
     }
 
+    private void addCollectionRow(final ArrayObjectAdapter adapter, final long insertBeforeHeaderId) {
+        CollectionFinder.find(this, mBaseItem.getId(), mBaseItem.getProviderIds(), (collectionId, collectionName) -> {
+            StdItemQuery query = new StdItemQuery();
+            query.setParentId(collectionId);
+            query.setSortBy(new String[]{"PremiereDate", "ProductionYear", "SortName"});
+            query.setSortOrder(SortOrder.Ascending);
+            ItemRowAdapter collectionAdapter = new ItemRowAdapter(this, query, new CardPresenter(), adapter);
+
+            String header = collectionName != null && !collectionName.isEmpty() ? collectionName : getString(R.string.lbl_collection);
+            ListRow listRow = new ListRow(new HeaderItem(6, header), collectionAdapter);
+            int position = adapter.size();
+            for (int i = 0; i < adapter.size(); i++) {
+                Object row = adapter.get(i);
+                if (row instanceof ListRow && ((ListRow) row).getHeaderItem() != null && ((ListRow) row).getHeaderItem().getId() == insertBeforeHeaderId) {
+                    position = i;
+                    break;
+                }
+            }
+            adapter.add(position, listRow);
+            collectionAdapter.setRow(listRow);
+            collectionAdapter.Retrieve();
+        });
+    }
+
     protected void addAdditionalRows(ArrayObjectAdapter adapter) {
         Timber.d("Item type: %s", mBaseItem.getBaseItemType().toString());
         switch (mBaseItem.getBaseItemType()) {
@@ -592,6 +617,9 @@ public class FullDetailsActivity extends BaseActivity implements RecordingIndica
 
                 ItemRowAdapter similarMoviesAdapter = new ItemRowAdapter(this, similar, QueryType.SimilarMovies, new CardPresenter(), adapter);
                 addItemRow(adapter, similarMoviesAdapter, 5, getString(R.string.lbl_more_like_this));
+
+                //Other movies in the same collection, inserted above "More like this" once found
+                addCollectionRow(adapter, 5);
 
                 addInfoRows(adapter);
                 break;
