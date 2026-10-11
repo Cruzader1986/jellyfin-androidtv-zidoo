@@ -56,7 +56,11 @@ import org.jellyfin.apiclient.model.dlna.SubtitleDeliveryMethod;
 import org.jellyfin.apiclient.model.dto.BaseItemDto;
 import org.jellyfin.apiclient.model.dto.BaseItemType;
 import org.jellyfin.apiclient.model.dto.MediaSourceInfo;
+import org.jellyfin.apiclient.model.entities.LocationType;
 import org.jellyfin.apiclient.model.entities.VideoType;
+import org.jellyfin.apiclient.model.querying.EpisodeQuery;
+import org.jellyfin.apiclient.model.querying.ItemFields;
+import org.jellyfin.apiclient.model.querying.ItemsResult;
 import org.jellyfin.apiclient.model.mediainfo.MediaProtocol;
 import org.jellyfin.apiclient.model.dto.UserItemDataDto;
 import org.jellyfin.apiclient.model.session.PlayMethod;
@@ -517,25 +521,90 @@ public class ExternalPlayerActivity extends FragmentActivity {
     }
 
     protected void playNext() {
-        mItemsToPlay.remove(0);
+        BaseItemDto finished = mItemsToPlay.isEmpty() ? null : mItemsToPlay.remove(0);
         if (mItemsToPlay.size() > 0) {
-            if (userPreferences.getValue().get(UserPreferences.Companion.getNextUpBehavior()) != NextUpBehavior.DISABLED) {
-                // Set to "modified" so the queue won't be cleared
-                mediaManager.getValue().setVideoQueueModified(true);
+            continueWithQueue();
+            return;
+        }
 
-                Intent intent = new Intent(this, NextUpActivity.class);
-                intent.putExtra(NextUpActivity.EXTRA_ID, mItemsToPlay.get(0).getId());
-                intent.putExtra(NextUpActivity.EXTRA_USE_EXTERNAL_PLAYER, true);
-                startActivity(intent);
-                finishAfterTransition();
-            } else {
-                mVersionSourceId = null;
-                mSeekPosition = 0;
-                prepareExternalPlayer(mItemsToPlay);
-            }
+        // The queue only holds the rest of the current season (and at most 15 episodes), so look
+        // up the following episode of the series, crossing into the next season when needed.
+        if (mCurrentItem != null && mCurrentItem.getBaseItemType() == BaseItemType.Episode) finished = mCurrentItem;
+        if (finished != null && finished.getBaseItemType() == BaseItemType.Episode && isNonEmptyTrim(finished.getSeriesId())
+                && userPreferences.getValue().get(UserPreferences.Companion.getMediaQueuingEnabled())) {
+            findFollowingEpisode(finished);
         } else {
             finish();
         }
+    }
+
+    private void continueWithQueue() {
+        if (userPreferences.getValue().get(UserPreferences.Companion.getNextUpBehavior()) != NextUpBehavior.DISABLED) {
+            // Set to "modified" so the queue won't be cleared
+            mediaManager.getValue().setVideoQueueModified(true);
+
+            Intent intent = new Intent(this, NextUpActivity.class);
+            intent.putExtra(NextUpActivity.EXTRA_ID, mItemsToPlay.get(0).getId());
+            intent.putExtra(NextUpActivity.EXTRA_USE_EXTERNAL_PLAYER, true);
+            startActivity(intent);
+            finishAfterTransition();
+        } else {
+            mVersionSourceId = null;
+            mSeekPosition = 0;
+            prepareExternalPlayer(mItemsToPlay);
+        }
+    }
+
+    private void findFollowingEpisode(@NonNull final BaseItemDto finished) {
+        EpisodeQuery query = new EpisodeQuery();
+        query.setSeriesId(finished.getSeriesId());
+        query.setUserId(KoinJavaComponent.<UserRepository>get(UserRepository.class).getCurrentUser().getValue().getId().toString());
+        query.setIsVirtualUnaired(false);
+        query.setIsMissing(false);
+        query.setFields(new ItemFields[]{
+                ItemFields.MediaSources,
+                ItemFields.MediaStreams,
+                ItemFields.Path,
+                ItemFields.Chapters,
+                ItemFields.Overview,
+                ItemFields.PrimaryImageAspectRatio,
+        });
+
+        apiClient.getValue().GetEpisodesAsync(query, new Response<ItemsResult>() {
+            @Override
+            public void onResponse(ItemsResult response) {
+                BaseItemDto next = null;
+                boolean foundFinished = false;
+                if (response != null && response.getItems() != null) {
+                    for (BaseItemDto episode : response.getItems()) {
+                        if (foundFinished) {
+                            if (episode != null && isNonEmptyTrim(episode.getId()) && !LocationType.Virtual.equals(episode.getLocationType())) {
+                                next = episode;
+                                break;
+                            }
+                        } else if (episode != null && finished.getId() != null && finished.getId().equals(episode.getId())) {
+                            foundFinished = true;
+                        }
+                    }
+                }
+
+                if (next == null || isFinishing() || isDestroyed()) {
+                    Timber.i("No following episode found after %s", finished.getName());
+                    finish();
+                    return;
+                }
+
+                Timber.i("Continuing series with %s", next.getName());
+                mItemsToPlay.add(next);
+                continueWithQueue();
+            }
+
+            @Override
+            public void onError(Exception exception) {
+                Timber.w(exception, "Could not look up the following episode");
+                finish();
+            }
+        });
     }
 
     @NonNull

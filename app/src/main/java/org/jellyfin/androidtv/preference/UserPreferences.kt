@@ -74,7 +74,7 @@ class UserPreferences(context: Context) : SharedPreferenceStore(
 		/**
 		 * Auto-play next item
 		 */
-		var mediaQueuingEnabled = booleanPreference("pref_enable_tv_queuing", false)
+		var mediaQueuingEnabled = booleanPreference("pref_enable_tv_queuing", true)
 
 		/**
 		 * Enable the next up screen or not
