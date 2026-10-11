@@ -16,6 +16,8 @@ import org.jellyfin.androidtv.R
 import org.jellyfin.androidtv.preference.UserPreferences
 import org.jellyfin.androidtv.preference.constant.LanguagesSubtitle
 import org.jellyfin.sdk.api.client.ApiClient
+import org.jellyfin.sdk.api.client.extensions.get
+import org.jellyfin.sdk.api.client.extensions.post
 import org.jellyfin.sdk.api.client.exception.InvalidStatusException
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
