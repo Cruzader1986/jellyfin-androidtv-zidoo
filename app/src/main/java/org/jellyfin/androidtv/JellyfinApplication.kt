@@ -18,6 +18,7 @@ import org.acra.ACRA
 import org.jellyfin.androidtv.data.eventhandling.SocketHandler
 import org.jellyfin.androidtv.data.repository.NotificationsRepository
 import org.jellyfin.androidtv.integration.LeanbackChannelWorker
+import org.jellyfin.androidtv.telemetry.CrashLog
 import org.jellyfin.androidtv.telemetry.TelemetryService
 import org.jellyfin.androidtv.util.AutoBitrate
 import org.koin.android.ext.android.inject
@@ -34,6 +35,9 @@ class JellyfinApplication : Application() {
 		super.onCreate()
 
 		appContext = applicationContext
+
+		// Remember the last crash locally (wraps the ACRA handler)
+		CrashLog.install(this)
 
 		// Don't run in ACRA service
 		if (ACRA.isACRASenderServiceProcess()) return
