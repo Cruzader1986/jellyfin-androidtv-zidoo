@@ -56,6 +56,7 @@ import org.jellyfin.apiclient.model.dlna.SubtitleDeliveryMethod;
 import org.jellyfin.apiclient.model.dto.BaseItemDto;
 import org.jellyfin.apiclient.model.dto.BaseItemType;
 import org.jellyfin.apiclient.model.dto.MediaSourceInfo;
+import org.jellyfin.apiclient.model.mediainfo.MediaProtocol;
 import org.jellyfin.apiclient.model.dto.UserItemDataDto;
 import org.jellyfin.apiclient.model.session.PlayMethod;
 import org.jellyfin.sdk.model.api.ImageFormat;
@@ -671,7 +672,8 @@ public class ExternalPlayerActivity extends FragmentActivity {
 
     protected void launchExternalPlayer() {
         isLiveTv = mCurrentItem.getBaseItemType() == BaseItemType.TvChannel;
-        if (!isLiveTv && mUseSendPath && !mAllowTranscoding) {
+        final boolean isRemoteStream = isRemoteStream(mCurrentItem, mCurrentMediaSource);
+        if (!isLiveTv && mUseSendPath && !mAllowTranscoding && !isRemoteStream) {
             // build fake streamInfo so report logic can work
             mCurrentStreamInfo = buildStreamInfoSendPath();
             // Just pass the path directly
@@ -688,7 +690,9 @@ public class ExternalPlayerActivity extends FragmentActivity {
             KoinJavaComponent.<PlaybackManager>get(PlaybackManager.class).getVideoStreamInfo(api.getValue().getDeviceInfo(), buildZidooPlayerOptions(audioSubIdx.first, audioSubIdx.second), mSeekPosition * RUNTIME_TICKS_TO_MS, apiClient.getValue(), new Response<StreamInfo>() {
                 @Override
                 public void onResponse(StreamInfo response) {
-                    if (response == null || response.getMediaSource() == null || isEmpty(response.getMediaSource().getMediaStreams())) {
+                    // .strm / remote http sources have no stream info until the server probed them once (Andy2244#7)
+                    if (response == null || response.getMediaSource() == null
+                            || (isEmpty(response.getMediaSource().getMediaStreams()) && !isRemoteStream(mCurrentItem, response.getMediaSource()))) {
                         Timber.e("onResponse: Attempt to play a empty media item.");
                         finish();
                     } else {
@@ -696,7 +700,7 @@ public class ExternalPlayerActivity extends FragmentActivity {
                         mCurrentMediaSource = response.getMediaSource();
 
                         showTranscodeInfoPopup();
-                        if (mUseSendPath && mCurrentStreamInfo.getPlayMethod() == PlayMethod.DirectPlay) {
+                        if (mUseSendPath && mCurrentStreamInfo.getPlayMethod() == PlayMethod.DirectPlay && !isRemoteStream(mCurrentItem, mCurrentMediaSource)) {
                             Uri uri = getSendPathUri(mCurrentItem, mCurrentMediaSource);
                             if (DeviceUtils.hasNewZidooApi()) {
                                 startExternalZidooMovieActivityDirectPath(uri);
@@ -724,6 +728,19 @@ public class ExternalPlayerActivity extends FragmentActivity {
                 }
             });
         }
+    }
+
+    /**
+     * .strm files (and other remote http sources): the item path is the .strm text file, the media source path is
+     * the url inside it. Such items must never use "direct path" (the Zidoo player can't open a .strm file) and may
+     * have no stream info yet (Andy2244/jellyfin-androidtv-zidoo#7).
+     */
+    protected static boolean isRemoteStream(@Nullable BaseItemDto item, @Nullable MediaSourceInfo mediaSource) {
+        if (mediaSource != null && (mediaSource.getProtocol() == MediaProtocol.Http || mediaSource.getIsRemote())) {
+            return true;
+        }
+        String path = item != null ? item.getPath() : null;
+        return path != null && path.toLowerCase(Locale.ROOT).endsWith(".strm");
     }
 
     @Nullable
@@ -1071,7 +1088,9 @@ public class ExternalPlayerActivity extends FragmentActivity {
         mDirectPathNfsRoot = null;
 
         String container = mCurrentStreamInfo.getContainer();
-        zidooIntent.setDataAndType(pathUri, "video/" + container);
+        // unknown container (e.g. unprobed .strm) -> let the player sniff it
+        String mimeType = !isNonEmptyTrim(container) || "strm".equalsIgnoreCase(container) ? "video/*" : "video/" + container;
+        zidooIntent.setDataAndType(pathUri, mimeType);
         Timber.i("Starting external MovieActivity playback <%s> from <%s> at position <%s> ms, <%s> with path <%s>", mCurrentStreamInfo.getPlayMethod().toString(), pathUri.getHost(), mSeekPosition, getMillisecondsFormated(mSeekPosition), pathUri.getPath());
 
         try {

@@ -117,6 +117,7 @@ public class GetPlaybackInfoResponse extends Response<PlaybackInfoResponse> {
                     outputContainer = "";
                 }
                 outputContainer = outputContainer.toLowerCase();
+                if ("strm".equals(outputContainer)) outputContainer = ""; // .strm: let the server pick
 
                 streamInfo.setPlayMethod(PlayMethod.DirectPlay);
                 streamInfo.setContainer(mediaSourceInfo.getContainer());
@@ -136,7 +137,7 @@ public class GetPlaybackInfoResponse extends Response<PlaybackInfoResponse> {
                 }
 
                 String handler = isVideo ? "Videos" : "Audio";
-                String mediaUrl = apiClient.GetApiUrl(handler + "/"+options.getItemId()+"/stream." + outputContainer, dict);
+                String mediaUrl = apiClient.GetApiUrl(handler + "/"+options.getItemId()+(outputContainer.isEmpty() ? "/stream" : "/stream." + outputContainer), dict);
                 //mediaUrl += seekParam;
 
                 streamInfo.setMediaUrl(mediaUrl);
@@ -147,6 +148,7 @@ public class GetPlaybackInfoResponse extends Response<PlaybackInfoResponse> {
                 outputContainer = "";
             }
             outputContainer = outputContainer.toLowerCase();
+            if ("strm".equals(outputContainer)) outputContainer = ""; // .strm: let the server pick
 
             streamInfo.setPlayMethod(PlayMethod.DirectStream);
             streamInfo.setContainer(mediaSourceInfo.getContainer());
@@ -166,7 +168,7 @@ public class GetPlaybackInfoResponse extends Response<PlaybackInfoResponse> {
             }
 
             String handler = isVideo ? "Videos" : "Audio";
-            String mediaUrl = apiClient.GetApiUrl(handler + "/"+options.getItemId()+"/stream." + outputContainer, dict);
+            String mediaUrl = apiClient.GetApiUrl(handler + "/"+options.getItemId()+(outputContainer.isEmpty() ? "/stream" : "/stream." + outputContainer), dict);
             //mediaUrl += seekParam;
 
             streamInfo.setMediaUrl(mediaUrl);
@@ -244,13 +246,26 @@ public class GetPlaybackInfoResponse extends Response<PlaybackInfoResponse> {
             }
 
             if (mediaSourceInfo.getIsRemote()){
-                return true;
+                // a url that only works on the server itself (e.g. a .strm pointing at localhost) must go through Jellyfin
+                return !isLoopbackUrl(mediaSourceInfo.getPath());
             }
 
             return mediaSourceInfo.getPath().toLowerCase().replace("https", "http").indexOf(apiClient.getServerAddress().toLowerCase().replace("https", "http").substring(0, 14)) == 0;
         }
 
         return false;
+    }
+
+    private static boolean isLoopbackUrl(String url) {
+        if (url == null) return false;
+        try {
+            String host = android.net.Uri.parse(url).getHost();
+            if (host == null) return false;
+            host = host.toLowerCase(java.util.Locale.ROOT);
+            return host.equals("localhost") || host.startsWith("127.") || host.equals("::1") || host.equals("[::1]") || host.equals("0.0.0.0");
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     private LiveStreamRequest getLiveStreamRequest() {
