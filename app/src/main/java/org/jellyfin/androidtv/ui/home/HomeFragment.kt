@@ -8,6 +8,7 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.core.view.ViewCompat
 import androidx.leanback.widget.ArrayObjectAdapter
+import androidx.leanback.widget.ClassPresenterSelector
 import androidx.leanback.widget.VerticalGridView
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
@@ -58,6 +59,12 @@ class HomeFragment : StdRowsFragment(), AudioEventListener {
 	private val notificationsRow by lazy { NotificationsHomeFragmentRow(lifecycleScope, notificationsRepository) }
 	private val nowPlaying by lazy { HomeFragmentNowPlayingRow(mediaManager) }
 	private val liveTVRow by lazy { HomeFragmentLiveTVRow(requireActivity(), userRepository) }
+	private val featuredRow by lazy {
+		FeaturedHomeFragmentRow(lifecycleScope) {
+			// The banner arrives after the other rows, focus it when the user hasn't moved yet
+			if (selectedPosition <= 1) setSelectedPosition(0, false)
+		}
+	}
 
 	private var homeSettingsUiHash: Int? = null
 
@@ -70,6 +77,7 @@ class HomeFragment : StdRowsFragment(), AudioEventListener {
 			userSettingPreferences[homeSize].value,
 			resources.getDimensionPixelSize(R.dimen.safe_area_vertical))
 		)
+		(mRowsAdapter.presenterSelector as? ClassPresenterSelector)?.addClassPresenter(FeaturedRow::class.java, FeaturedRowPresenter())
 		adapter = mRowsAdapter
 
 		mCardPresenter = CardPresenter(userSettingPreferences[cardInfoType], null)
@@ -187,6 +195,7 @@ class HomeFragment : StdRowsFragment(), AudioEventListener {
 				// Add rows in order
 				notificationsRow.addToRowsAdapter(requireContext(), CardPresenter(CardInfoType.UNDER_MINI, null), mRowsAdapter)
 				nowPlaying.addToRowsAdapter(requireContext(), CardPresenter(userSettingPreferences[cardInfoType], null), mRowsAdapter)
+				if (userPreferences[UserPreferences.featuredBannerEnabled]) featuredRow.addToRowsAdapter(requireContext(), mCardPresenter, mRowsAdapter)
 				rows.forEach {
 					it.addToRowsAdapter(requireContext(), mCardPresenter, mRowsAdapter)
 				}

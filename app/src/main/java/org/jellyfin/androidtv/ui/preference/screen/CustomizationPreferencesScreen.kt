@@ -48,6 +48,12 @@ class CustomizationPreferencesScreen : OptionsFragment() {
 			}
 
 			checkbox {
+				setTitle(R.string.pref_featured_banner)
+				setContent(R.string.pref_featured_banner_description)
+				bind(userPreferences, UserPreferences.featuredBannerEnabled)
+			}
+
+			checkbox {
 				setTitle(R.string.pref_theme_music)
 				setContent(R.string.pref_theme_music_description)
 				bind(userPreferences, UserPreferences.themeMusicEnabled)

@@ -49,6 +49,11 @@ class UserPreferences(context: Context) : SharedPreferenceStore(
 		var backdropBlur = booleanPreference("pref_backdrop_blur", true)
 
 		/**
+		 * Rotating featured movies/series banner at the top of the home screen
+		 */
+		var featuredBannerEnabled = booleanPreference("pref_featured_banner", true)
+
+		/**
 		 * Show premieres on home screen
 		 */
 		var premieresEnabled = booleanPreference("pref_enable_premieres", false)
@@ -311,6 +316,7 @@ class UserPreferences(context: Context) : SharedPreferenceStore(
 		return this[appTheme].hashCode() +
 				this[backdropType].hashCode() +
 				this[backdropBlur].hashCode() +
+				this[featuredBannerEnabled].hashCode() +
 				this[premieresEnabled].hashCode() +
 				this[clockBehavior].hashCode() +
 				this[defaultRatingType].hashCode() +
