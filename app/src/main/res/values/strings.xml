@@ -617,6 +617,9 @@
     <string name="update_downloading">Downloading %1$s…</string>
     <string name="update_download_failed">Update download failed</string>
     <string name="update_allow_install">Allow Jellyfin to install apps, then choose Update again</string>
+    <string name="update_view_changes">Full changelog:</string>
+    <string name="update_view_here">View here</string>
+    <string name="update_no_browser">No web browser on this device. Release notes: %1$s</string>
     <string name="update_check_now">Check for updates</string>
     <string name="update_check_now_description">Latest release from github.com/%1$s</string>
     <string name="update_check_on_startup">Check for updates on startup</string>

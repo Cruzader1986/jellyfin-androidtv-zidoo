@@ -35,6 +35,7 @@ object AppUpdater {
 		val notes: String,
 		val apkUrl: String,
 		val apkSize: Long,
+		val pageUrl: String,
 	)
 
 	private val json = Json { ignoreUnknownKeys = true }
@@ -89,6 +90,7 @@ object AppUpdater {
 				notes = release.string("body").orEmpty(),
 				apkUrl = asset.string("browser_download_url") ?: return@withContext null,
 				apkSize = asset["size"]?.jsonPrimitive?.contentOrNull?.toLongOrNull() ?: -1,
+				pageUrl = release.string("html_url") ?: "https://github.com/$REPOSITORY/releases/tag/$tag",
 			)
 		} catch (err: Exception) {
 			Timber.w(err, "Update check failed")
