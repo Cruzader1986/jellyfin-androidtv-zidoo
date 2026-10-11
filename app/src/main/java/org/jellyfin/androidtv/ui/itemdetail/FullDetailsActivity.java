@@ -1361,6 +1361,8 @@ public class FullDetailsActivity extends BaseActivity implements RecordingIndica
                 }
 
                 more.getMenu().findItem(R.id.mediaInfo).setVisible(hasMediaInfo());
+                more.getMenu().findItem(R.id.addToPlaylist).setVisible(canAddToPlaylist());
+                more.getMenu().findItem(R.id.addToCollection).setVisible(canAddToPlaylist() && mBaseItem.getBaseItemType() != BaseItemType.Audio);
                 more.getMenu().findItem(R.id.downloadSubtitles).setVisible(canSearchSubtitles());
                 more.getMenu().findItem(R.id.removeResume).setVisible(canRemoveFromResume());
                 more.getMenu().findItem(R.id.markSeasonWatched).setVisible(hasSeason());
@@ -1439,7 +1441,11 @@ public class FullDetailsActivity extends BaseActivity implements RecordingIndica
 
     // options that only live in the "more" menu, so the button has to be shown for them
     private boolean hasExtraMoreOptions() {
-        return hasMediaInfo() || canRemoveFromResume() || hasSeason();
+        return hasMediaInfo() || canRemoveFromResume() || hasSeason() || canAddToPlaylist();
+    }
+
+    private boolean canAddToPlaylist() {
+        return mBaseItem != null && mProgramInfo == null && KeyProcessor.canAddToPlaylist(mBaseItem);
     }
 
     private boolean canSearchSubtitles() {
@@ -1512,6 +1518,12 @@ public class FullDetailsActivity extends BaseActivity implements RecordingIndica
                     return true;
                 case R.id.playTrailers:
                     playTrailers();
+                    return true;
+                case R.id.addToPlaylist:
+                    AddToPlaylistDialog.show(FullDetailsActivity.this, mBaseItem.getId());
+                    return true;
+                case R.id.addToCollection:
+                    AddToPlaylistDialog.showCollections(FullDetailsActivity.this, mBaseItem.getId());
                     return true;
                 case R.id.downloadSubtitles:
                     SubtitleSearchDialog.show(FullDetailsActivity.this, mBaseItem.getId());

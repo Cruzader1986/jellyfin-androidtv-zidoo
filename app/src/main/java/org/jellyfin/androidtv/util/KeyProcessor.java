@@ -53,6 +53,10 @@ public class KeyProcessor {
     public static final int MENU_INSTANT_MIX = 11;
     public static final int MENU_CLEAR_QUEUE = 12;
     public static final int MENU_TOGGLE_SHUFFLE = 13;
+    public static final int MENU_REMOVE_FROM_RESUME = 14;
+    public static final int MENU_GOTO_SERIES = 15;
+    public static final int MENU_OPEN_DETAILS = 16;
+    public static final int MENU_ADD_TO_PLAYLIST = 17;
 
     private static String mCurrentItemId;
     private static BaseItemDto mCurrentItem;
@@ -285,6 +289,22 @@ public class KeyProcessor {
                     menu.getMenu().add(0, MENU_MARK_FAVORITE, order++, activity.getString(R.string.lbl_add_favorite));
                 }
             }
+
+            if (!item.getIsFolderItem() && userData != null && userData.getPlaybackPositionTicks() > 0) {
+                menu.getMenu().add(0, MENU_REMOVE_FROM_RESUME, order++, R.string.lbl_remove_from_resume);
+            }
+
+            if (item.getBaseItemType() == BaseItemType.Episode && item.getSeriesId() != null) {
+                menu.getMenu().add(0, MENU_GOTO_SERIES, order++, R.string.lbl_goto_series);
+            }
+
+            if (item.getBaseItemType() != BaseItemType.TvChannel && item.getBaseItemType() != BaseItemType.Program) {
+                menu.getMenu().add(0, MENU_OPEN_DETAILS, order++, R.string.lbl_open_details);
+            }
+
+            if (canAddToPlaylist(item)) {
+                menu.getMenu().add(0, MENU_ADD_TO_PLAYLIST, order++, R.string.lbl_add_to_playlist);
+            }
         }
 
         //Not sure I like this but I either duplicate processing with in-line events or do this and
@@ -427,11 +447,62 @@ public class KeyProcessor {
                 case MENU_INSTANT_MIX:
                     PlaybackHelper.playInstantMix(mCurrentActivity, mCurrentItem);
                     return true;
+                case MENU_REMOVE_FROM_RESUME:
+                    removeFromResume();
+                    return true;
+                case MENU_GOTO_SERIES:
+                    openDetails(mCurrentItem.getSeriesId());
+                    return true;
+                case MENU_OPEN_DETAILS:
+                    openDetails(mCurrentItemId);
+                    return true;
+                case MENU_ADD_TO_PLAYLIST:
+                    if (mCurrentActivity instanceof androidx.fragment.app.FragmentActivity)
+                        org.jellyfin.androidtv.ui.itemdetail.AddToPlaylistDialog.show((androidx.fragment.app.FragmentActivity) mCurrentActivity, mCurrentItemId);
+                    return true;
             }
 
             return false;
         }
     };
+
+    public static boolean canAddToPlaylist(BaseItemDto item) {
+        BaseItemType type = item.getBaseItemType();
+        return type == BaseItemType.Movie || type == BaseItemType.Episode || type == BaseItemType.Video
+                || type == BaseItemType.Audio || type == BaseItemType.MusicAlbum || type == BaseItemType.Series
+                || type == BaseItemType.Season || type == BaseItemType.MusicVideo;
+    }
+
+    private static void openDetails(String itemId) {
+        if (itemId == null) return;
+        Intent intent = new Intent(mCurrentActivity, org.jellyfin.androidtv.ui.itemdetail.FullDetailsActivity.class);
+        intent.putExtra("ItemId", itemId);
+        mCurrentActivity.startActivity(intent);
+    }
+
+    // Resetting the resume position removes the item from Continue Watching. Played/unplayed both
+    // reset it, so keep the current played state.
+    private static void removeFromResume() {
+        final boolean played = mCurrentItem.getUserData() != null && mCurrentItem.getUserData().getPlayed();
+        String userId = KoinJavaComponent.<UserRepository>get(UserRepository.class).getCurrentUser().getValue().getId().toString();
+        Response<UserItemDataDto> response = new Response<UserItemDataDto>() {
+            @Override
+            public void onResponse(UserItemDataDto data) {
+                KoinJavaComponent.<org.jellyfin.androidtv.data.model.DataRefreshService>get(org.jellyfin.androidtv.data.model.DataRefreshService.class).setLastPlayback(System.currentTimeMillis());
+                Utils.showToast(mCurrentActivity, R.string.msg_removed_from_resume);
+                if (mCurrentActivity instanceof BaseActivity)
+                    ((BaseActivity)mCurrentActivity).sendMessage(CustomMessage.RefreshCurrentItem);
+            }
+
+            @Override
+            public void onError(Exception exception) {
+                Timber.e(exception, "Error resetting resume position");
+                Utils.showToast(mCurrentActivity, R.string.playing_error);
+            }
+        };
+        if (played) KoinJavaComponent.<ApiClient>get(ApiClient.class).MarkPlayedAsync(mCurrentItemId, userId, null, response);
+        else KoinJavaComponent.<ApiClient>get(ApiClient.class).MarkUnplayedAsync(mCurrentItemId, userId, response);
+    }
 
     private static void markPlayed() {
         KoinJavaComponent.<ApiClient>get(ApiClient.class).MarkPlayedAsync(mCurrentItemId, KoinJavaComponent.<UserRepository>get(UserRepository.class).getCurrentUser().getValue().getId().toString(), null, new Response<UserItemDataDto>() {

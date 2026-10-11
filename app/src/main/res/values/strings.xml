@@ -643,4 +643,13 @@
     <string name="pref_view_last_crash">View last crash</string>
     <string name="pref_no_crash_logged">No crash recorded</string>
     <string name="pref_clear_crash">Clear</string>
+    <string name="lbl_open_details">Open details</string>
+    <string name="lbl_add_to_playlist">Add to playlist</string>
+    <string name="lbl_add_to_collection">Add to collection</string>
+    <string name="lbl_new_playlist">New playlist…</string>
+    <string name="lbl_new_collection">New collection…</string>
+    <string name="msg_added_to_playlist">Added to playlist</string>
+    <string name="msg_added_to_collection">Added to collection</string>
+    <string name="msg_no_permission">Your Jellyfin user is not allowed to do this</string>
+    <string name="msg_update_failed">Could not update the server</string>
 </resources>

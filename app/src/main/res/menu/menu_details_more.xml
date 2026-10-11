@@ -33,4 +33,10 @@
     <item
         android:id="@+id/downloadSubtitles"
         android:title="@string/lbl_download_subtitles" />
+    <item
+        android:id="@+id/addToPlaylist"
+        android:title="@string/lbl_add_to_playlist" />
+    <item
+        android:id="@+id/addToCollection"
+        android:title="@string/lbl_add_to_collection" />
 </menu>
