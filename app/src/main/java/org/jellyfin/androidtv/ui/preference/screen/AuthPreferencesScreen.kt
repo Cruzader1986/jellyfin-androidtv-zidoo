@@ -1,6 +1,11 @@
 package org.jellyfin.androidtv.ui.preference.screen
 
+import android.app.AlertDialog
 import android.os.Bundle
+import android.widget.EditText
+import android.widget.FrameLayout
+import android.widget.Toast
+import org.jellyfin.androidtv.util.WakeOnLan
 import android.view.View
 import androidx.core.os.bundleOf
 import androidx.lifecycle.Lifecycle
@@ -18,6 +23,7 @@ import org.jellyfin.androidtv.ui.preference.category.aboutCategory
 import org.jellyfin.androidtv.ui.preference.dsl.OptionsBinder
 import org.jellyfin.androidtv.ui.preference.dsl.OptionsFragment
 import org.jellyfin.androidtv.ui.preference.dsl.OptionsItemUserPicker
+import org.jellyfin.androidtv.ui.preference.dsl.action
 import org.jellyfin.androidtv.ui.preference.dsl.checkbox
 import org.jellyfin.androidtv.ui.preference.dsl.enum
 import org.jellyfin.androidtv.ui.preference.dsl.link
@@ -94,6 +100,23 @@ class AuthPreferencesScreen : OptionsFragment() {
 			}
 		}
 
+		if (servers.isNotEmpty()) {
+			category {
+				setTitle(R.string.pref_wake_on_lan)
+
+				for (server in servers) {
+					action {
+						title = server.name
+						icon = R.drawable.ic_house
+						content = WakeOnLan.getMac(requireContext(), server.address)
+							?.let { getString(R.string.pref_wake_on_lan_mac, it) }
+							?: getString(R.string.pref_wake_on_lan_unknown)
+						onActivate = { editWakeOnLanMac(server.name, server.address) }
+					}
+				}
+			}
+		}
+
 		// Disallow changing the "always authenticate" option from the login screen
 		// because that would allow a kid to disable the function to access a parent's account
 		if (sessionRepository.currentSession.value != null) {
@@ -109,6 +132,42 @@ class AuthPreferencesScreen : OptionsFragment() {
 		}
 
 		if (showAbout) aboutCategory()
+	}
+
+	private fun editWakeOnLanMac(name: String, address: String) {
+		val context = requireContext()
+		val padding = (24 * resources.displayMetrics.density).toInt()
+		val input = EditText(context).apply {
+			isSingleLine = true
+			hint = "AA:BB:CC:DD:EE:FF"
+			setText(WakeOnLan.getMac(context, address).orEmpty())
+		}
+		val container = FrameLayout(context).apply {
+			setPadding(padding, padding / 2, padding, 0)
+			addView(input)
+		}
+		AlertDialog.Builder(context)
+			.setTitle(getString(R.string.pref_wake_on_lan_edit, name))
+			.setMessage(R.string.pref_wake_on_lan_help)
+			.setView(container)
+			.setPositiveButton(android.R.string.ok) { _, _ ->
+				val mac = input.text?.toString()?.trim().orEmpty()
+				when {
+					mac.isEmpty() -> WakeOnLan.setMac(context, address, null)
+					WakeOnLan.isValidMac(mac) -> WakeOnLan.setMac(context, address, mac)
+					else -> Toast.makeText(context, R.string.pref_wake_on_lan_invalid, Toast.LENGTH_LONG).show()
+				}
+				rebuild()
+			}
+			.setNeutralButton(R.string.pref_wake_on_lan_test) { _, _ ->
+				val mac = WakeOnLan.getMac(context, address) ?: return@setNeutralButton
+				lifecycleScope.launch {
+					WakeOnLan.sendMagicPacket(mac, address)
+					Toast.makeText(context, getString(R.string.msg_wake_sent, name), Toast.LENGTH_SHORT).show()
+				}
+			}
+			.setNegativeButton(android.R.string.cancel, null)
+			.show()
 	}
 
 	/**

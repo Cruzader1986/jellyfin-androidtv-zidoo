@@ -27,6 +27,7 @@ import org.jellyfin.androidtv.ui.itemdetail.FullDetailsActivity
 import org.jellyfin.androidtv.ui.itemhandling.ItemLauncher
 import org.jellyfin.androidtv.ui.playback.MediaManager
 import org.jellyfin.androidtv.ui.search.SearchActivity
+import org.jellyfin.androidtv.util.WakeOnLan
 import org.jellyfin.androidtv.ui.startup.fragment.SelectServerFragment
 import org.jellyfin.androidtv.ui.startup.fragment.ServerFragment
 import org.jellyfin.androidtv.ui.startup.fragment.SplashFragment
@@ -43,6 +44,9 @@ import kotlin.coroutines.suspendCoroutine
 
 class StartupActivity : AppCompatActivity(R.layout.fragment_content_view) {
 	companion object {
+		// Only try to wake the server once per app start (recreate() restarts the flow)
+		private var wakeAttempted = false
+
 		const val EXTRA_ITEM_ID = "ItemId"
 		const val EXTRA_ITEM_IS_USER_VIEW = "ItemIsUserView"
 		const val EXTRA_HIDE_SPLASH = "HideSplash"
@@ -78,6 +82,33 @@ class StartupActivity : AppCompatActivity(R.layout.fragment_content_view) {
 
 		// Ensure basic permissions
 		networkPermissionsRequester.launch(arrayOf(Manifest.permission.INTERNET, Manifest.permission.ACCESS_NETWORK_STATE))
+
+		checkServerAwake()
+	}
+
+	/**
+	 * Wake-on-LAN: when the last used server doesn't answer and its MAC address is known, wake it
+	 * and restart the startup flow once it is online. While it is reachable, learn its MAC address.
+	 */
+	private fun checkServerAwake() = lifecycleScope.launch {
+		val server = startupViewModel.getLastServer() ?: return@launch
+		if (WakeOnLan.isReachable(server.address)) {
+			WakeOnLan.learnMac(this@StartupActivity, server.address)
+			return@launch
+		}
+
+		val mac = WakeOnLan.getMac(this@StartupActivity, server.address) ?: return@launch
+		if (wakeAttempted) return@launch
+		wakeAttempted = true
+
+		Timber.i("Server %s is not reachable, sending Wake-on-LAN to %s", server.address, mac)
+		Toast.makeText(this@StartupActivity, getString(R.string.msg_waking_server, server.name), Toast.LENGTH_LONG).show()
+		if (WakeOnLan.wakeAndWait(mac, server.address)) {
+			Toast.makeText(this@StartupActivity, getString(R.string.msg_server_awake, server.name), Toast.LENGTH_SHORT).show()
+			if (!isFinishing) recreate()
+		} else {
+			Toast.makeText(this@StartupActivity, getString(R.string.msg_server_wake_failed, server.name), Toast.LENGTH_LONG).show()
+		}
 	}
 
 	private fun onPermissionsGranted() = lifecycleScope.launch {
