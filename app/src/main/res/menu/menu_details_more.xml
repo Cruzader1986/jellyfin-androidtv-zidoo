@@ -39,4 +39,10 @@
     <item
         android:id="@+id/addToCollection"
         android:title="@string/lbl_add_to_collection" />
+    <item
+        android:id="@+id/addBookmark"
+        android:title="@string/lbl_add_bookmark" />
+    <item
+        android:id="@+id/manageBookmarks"
+        android:title="@string/lbl_delete_bookmark" />
 </menu>

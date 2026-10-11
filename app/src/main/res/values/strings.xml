@@ -661,4 +661,22 @@
     <string name="pref_featured_banner_description">Rotating random movies and shows at the top of the home screen</string>
     <string name="lbl_collection">Collection</string>
     <string name="lbl_not_watched_yet">Not watched yet</string>
+    <string name="lbl_bookmarks">Bookmarks</string>
+    <string name="lbl_add_bookmark">Add bookmark</string>
+    <string name="lbl_add_bookmark_at">Bookmark %1$s</string>
+    <string name="lbl_bookmark_default_name">Bookmark %1$d</string>
+    <string name="lbl_delete_bookmark">Delete a bookmark</string>
+    <string name="msg_bookmark_added">Bookmark saved</string>
+    <string name="msg_bookmark_no_position">Play it and stop at the scene you want to bookmark first</string>
+    <string name="pref_wake_on_lan">Wake-on-LAN</string>
+    <string name="pref_wake_on_lan_mac">Wakes the server if it is asleep (MAC %1$s)</string>
+    <string name="pref_wake_on_lan_unknown">MAC address not known yet, it is detected automatically while the server is online</string>
+    <string name="pref_wake_on_lan_edit">Wake-on-LAN for %1$s</string>
+    <string name="pref_wake_on_lan_help">MAC address of the server\'s network card. Leave empty to turn Wake-on-LAN off. Wake-on-LAN must also be enabled in the server\'s BIOS / network settings.</string>
+    <string name="pref_wake_on_lan_invalid">That is not a valid MAC address</string>
+    <string name="pref_wake_on_lan_test">Wake now</string>
+    <string name="msg_wake_sent">Wake-up sent to %1$s</string>
+    <string name="msg_waking_server">%1$s is asleep, waking it up…</string>
+    <string name="msg_server_awake">%1$s is awake</string>
+    <string name="msg_server_wake_failed">%1$s did not wake up</string>
 </resources>

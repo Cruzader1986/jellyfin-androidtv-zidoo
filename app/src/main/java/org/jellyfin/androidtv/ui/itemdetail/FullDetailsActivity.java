@@ -509,6 +509,7 @@ public class FullDetailsActivity extends BaseActivity implements RecordingIndica
         updateInfo(detailsOverviewRow.getItem());
 
         addAdditionalRows(mRowsAdapter);
+        refreshBookmarksRow();
     }
 
     public void setBaseItem(BaseItemDto item) {
@@ -547,6 +548,91 @@ public class FullDetailsActivity extends BaseActivity implements RecordingIndica
         parent.add(listRow);
         row.setRow(listRow);
         row.Retrieve();
+    }
+
+    private ListRow mBookmarksRow;
+
+    private boolean canBookmark() {
+        if (mBaseItem == null || mProgramInfo != null) return false;
+        BaseItemType type = mBaseItem.getBaseItemType();
+        return type == BaseItemType.Movie || type == BaseItemType.Episode || type == BaseItemType.Video || type == BaseItemType.MusicVideo;
+    }
+
+    // Bookmarks row right under the details, reusing chapter cards so OK plays from that point
+    private void refreshBookmarksRow() {
+        if (mRowsAdapter == null || !canBookmark()) return;
+        if (mBookmarksRow != null) {
+            mRowsAdapter.remove(mBookmarksRow);
+            mBookmarksRow = null;
+        }
+
+        List<BookmarkStore.Bookmark> bookmarks = BookmarkStore.get(this, mBaseItem.getId());
+        if (bookmarks.isEmpty()) return;
+
+        String imageUrl = ImageUtils.getPrimaryImageUrl(mBaseItem, 300);
+        List<ChapterItemInfo> items = new ArrayList<>();
+        for (BookmarkStore.Bookmark bookmark : bookmarks) {
+            ChapterItemInfo info = new ChapterItemInfo();
+            info.setItemId(mBaseItem.getId());
+            info.setName(bookmark.getName() + " · " + TimeUtils.formatMillis(bookmark.getPositionTicks() / 10000));
+            info.setStartPositionTicks(bookmark.getPositionTicks());
+            info.setImagePath(imageUrl);
+            items.add(info);
+        }
+
+        ItemRowAdapter bookmarkAdapter = new ItemRowAdapter(this, items, new CardPresenter(true, 240), mRowsAdapter);
+        mBookmarksRow = new ThumbListRow(new HeaderItem(7, getString(R.string.lbl_bookmarks)), bookmarkAdapter);
+        mRowsAdapter.add(Math.min(1, mRowsAdapter.size()), mBookmarksRow);
+        bookmarkAdapter.setRow(mBookmarksRow);
+        bookmarkAdapter.Retrieve();
+    }
+
+    private void addBookmark() {
+        final long ticks = mBaseItem.getUserData() != null ? mBaseItem.getUserData().getPlaybackPositionTicks() : 0;
+        if (ticks <= 0) {
+            Utils.showToast(this, getString(R.string.msg_bookmark_no_position));
+            return;
+        }
+
+        int padding = Utils.convertDpToPixel(this, 24);
+        final android.widget.EditText input = new android.widget.EditText(this);
+        input.setSingleLine(true);
+        input.setText(getString(R.string.lbl_bookmark_default_name, BookmarkStore.get(this, mBaseItem.getId()).size() + 1));
+        input.selectAll();
+        android.widget.FrameLayout container = new android.widget.FrameLayout(this);
+        container.setPadding(padding, padding / 2, padding, 0);
+        container.addView(input);
+
+        new AlertDialog.Builder(this)
+                .setTitle(getString(R.string.lbl_add_bookmark_at, TimeUtils.formatMillis(ticks / 10000)))
+                .setView(container)
+                .setPositiveButton(android.R.string.ok, (dialog, which) -> {
+                    String name = input.getText() != null ? input.getText().toString().trim() : "";
+                    if (name.isEmpty()) name = getString(R.string.lbl_bookmark_default_name, 1);
+                    BookmarkStore.add(this, mBaseItem.getId(), name, ticks);
+                    refreshBookmarksRow();
+                    Utils.showToast(this, getString(R.string.msg_bookmark_added));
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+        input.requestFocus();
+    }
+
+    private void manageBookmarks() {
+        final List<BookmarkStore.Bookmark> bookmarks = BookmarkStore.get(this, mBaseItem.getId());
+        if (bookmarks.isEmpty()) return;
+        String[] labels = new String[bookmarks.size()];
+        for (int i = 0; i < bookmarks.size(); i++) {
+            labels[i] = bookmarks.get(i).getName() + "  (" + TimeUtils.formatMillis(bookmarks.get(i).getPositionTicks() / 10000) + ")";
+        }
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.lbl_delete_bookmark)
+                .setItems(labels, (dialog, which) -> {
+                    BookmarkStore.remove(this, mBaseItem.getId(), bookmarks.get(which));
+                    refreshBookmarksRow();
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
     }
 
     private void addCollectionRow(final ArrayObjectAdapter adapter, final long insertBeforeHeaderId) {
@@ -1410,6 +1496,12 @@ public class FullDetailsActivity extends BaseActivity implements RecordingIndica
                 }
 
                 more.getMenu().findItem(R.id.mediaInfo).setVisible(hasMediaInfo());
+                boolean hasPosition = mBaseItem.getUserData() != null && mBaseItem.getUserData().getPlaybackPositionTicks() > 0;
+                more.getMenu().findItem(R.id.addBookmark).setVisible(canBookmark() && hasPosition);
+                if (canBookmark() && hasPosition) {
+                    more.getMenu().findItem(R.id.addBookmark).setTitle(getString(R.string.lbl_add_bookmark_at, TimeUtils.formatMillis(mBaseItem.getUserData().getPlaybackPositionTicks() / 10000)));
+                }
+                more.getMenu().findItem(R.id.manageBookmarks).setVisible(canBookmark() && !BookmarkStore.get(mActivity, mBaseItem.getId()).isEmpty());
                 more.getMenu().findItem(R.id.addToPlaylist).setVisible(canAddToPlaylist());
                 more.getMenu().findItem(R.id.addToCollection).setVisible(canAddToPlaylist() && mBaseItem.getBaseItemType() != BaseItemType.Audio);
                 more.getMenu().findItem(R.id.downloadSubtitles).setVisible(canSearchSubtitles());
@@ -1490,7 +1582,7 @@ public class FullDetailsActivity extends BaseActivity implements RecordingIndica
 
     // options that only live in the "more" menu, so the button has to be shown for them
     private boolean hasExtraMoreOptions() {
-        return hasMediaInfo() || canRemoveFromResume() || hasSeason() || canAddToPlaylist();
+        return hasMediaInfo() || canRemoveFromResume() || hasSeason() || canAddToPlaylist() || canBookmark();
     }
 
     private boolean canAddToPlaylist() {
@@ -1567,6 +1659,12 @@ public class FullDetailsActivity extends BaseActivity implements RecordingIndica
                     return true;
                 case R.id.playTrailers:
                     playTrailers();
+                    return true;
+                case R.id.addBookmark:
+                    addBookmark();
+                    return true;
+                case R.id.manageBookmarks:
+                    manageBookmarks();
                     return true;
                 case R.id.addToPlaylist:
                     AddToPlaylistDialog.show(FullDetailsActivity.this, mBaseItem.getId());
