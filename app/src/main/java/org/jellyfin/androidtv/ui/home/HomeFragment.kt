@@ -12,6 +12,7 @@ import androidx.leanback.widget.ClassPresenterSelector
 import androidx.leanback.widget.VerticalGridView
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -159,27 +160,32 @@ class HomeFragment : StdRowsFragment(), AudioEventListener {
 			// Start out with default sections
 			val homesections = userSettingPreferences.homesections
 
-			// Check for live TV support
-			if (homesections.contains(HomeSectionType.LIVE_TV) && currentUser.policy?.enableLiveTvAccess == true) {
-				// This is kind of ugly, but it mirrors how web handles the live TV rows on the home screen
-				// If we can retrieve one live TV recommendation, then we should display the rows
-				callApi<ItemsResult> {
-					apiClient.GetRecommendedLiveTvProgramsAsync(
-						RecommendedProgramQuery().apply {
-							userId = currentUser.id.toString()
-							enableTotalRecordCount = false
-							imageTypeLimit = 1
-							isAiring = true
-							limit = 1
-						},
-						it
-					)
-				}.let { includeLiveTvRows = !it.items.isNullOrEmpty() }
+			// Load the live TV check and the user views at the same time instead of one after another
+			val liveTv = async {
+				if (homesections.contains(HomeSectionType.LIVE_TV) && currentUser.policy?.enableLiveTvAccess == true) {
+					// This is kind of ugly, but it mirrors how web handles the live TV rows on the home screen
+					// If we can retrieve one live TV recommendation, then we should display the rows
+					callApi<ItemsResult> {
+						apiClient.GetRecommendedLiveTvProgramsAsync(
+							RecommendedProgramQuery().apply {
+								userId = currentUser.id.toString()
+								enableTotalRecordCount = false
+								imageTypeLimit = 1
+								isAiring = true
+								limit = 1
+							},
+							it
+						)
+					}.let { !it.items.isNullOrEmpty() }
+				} else false
 			}
-
-			if (homesections.contains(HomeSectionType.LATEST_MEDIA)) {
-				views = callApi<ItemsResult> { apiClient.GetUserViews(currentUser.id.toString(), it) }
+			val userViews = async {
+				if (homesections.contains(HomeSectionType.LATEST_MEDIA)) {
+					callApi<ItemsResult> { apiClient.GetUserViews(currentUser.id.toString(), it) }
+				} else null
 			}
+			includeLiveTvRows = liveTv.await()
+			userViews.await()?.let { views = it }
 
 			// Make sure the rows are empty
 			rows.clear()

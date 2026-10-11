@@ -50,13 +50,17 @@ class JellyfinApplication : Application() {
 	/**
 	 * Called from the StartupActivity when the user session is started.
 	 */
-	suspend fun onSessionStart() = withContext(Dispatchers.IO) {
+	suspend fun onSessionStart() {
 		val workManager by inject<WorkManager>()
 		val autoBitrate by inject<AutoBitrate>()
 		val socketListener by inject<SocketHandler>()
 
+		// Everything here runs in the background: withContext() used to wait for the worker
+		// rescheduling and the WebSocket connection before the home screen could open.
+		val scope = ProcessLifecycleOwner.get().lifecycleScope
+
 		// Update background worker
-		launch {
+		scope.launch(Dispatchers.IO) {
 			// Cancel all current workers
 			workManager.cancelAllWork().await()
 
@@ -71,11 +75,11 @@ class JellyfinApplication : Application() {
 		}
 
 		// Update WebSockets
-		launch { socketListener.updateSession() }
+		scope.launch(Dispatchers.IO) { socketListener.updateSession() }
 
 		// Detect auto bitrate
 		// running in a different scope to prevent slow startups
-		ProcessLifecycleOwner.get().lifecycleScope.launch {
+		scope.launch {
 //			JellyfinGlideModule.clearDiskCache()
 			autoBitrate.detect()
 		}
