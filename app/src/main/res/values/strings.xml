@@ -601,4 +601,5 @@
     <string name="lbl_text_scale_normal">Normal</string>
     <string name="lbl_text_scale_large">Large</string>
     <string name="lbl_text_scale_extra_large">Extra large</string>
+    <string name="msg_disc_image_needs_direct_path">DVD/Blu-ray images (ISO) can only be played with \"Use direct path\" enabled in the playback settings.</string>
 </resources>

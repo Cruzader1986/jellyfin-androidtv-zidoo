@@ -56,6 +56,7 @@ import org.jellyfin.apiclient.model.dlna.SubtitleDeliveryMethod;
 import org.jellyfin.apiclient.model.dto.BaseItemDto;
 import org.jellyfin.apiclient.model.dto.BaseItemType;
 import org.jellyfin.apiclient.model.dto.MediaSourceInfo;
+import org.jellyfin.apiclient.model.entities.VideoType;
 import org.jellyfin.apiclient.model.mediainfo.MediaProtocol;
 import org.jellyfin.apiclient.model.dto.UserItemDataDto;
 import org.jellyfin.apiclient.model.session.PlayMethod;
@@ -570,7 +571,7 @@ public class ExternalPlayerActivity extends FragmentActivity {
         // some items come with broken provider data
         boolean needsUpdate = mPrefs.mAudioLangSetting == LanguagesAudio.ORIGINAL && item.getProviderIds() == null;
 
-        if (!needsUpdate && isNonEmptyTrim(item.getPath()) && isNonEmpty(item.getMediaStreams()) && isNonEmpty(item.getMediaSources())) {
+        if (!needsUpdate && isNonEmptyTrim(item.getPath()) && (isNonEmpty(item.getMediaStreams()) || canPlayWithoutStreams(item)) && isNonEmpty(item.getMediaSources())) {
             mCurrentItem = item;
             prepareLaunchExternalPlayer();
         } else {
@@ -579,7 +580,9 @@ public class ExternalPlayerActivity extends FragmentActivity {
             apiClient.getValue().GetItemAsync(item.getId(), KoinJavaComponent.<UserRepository>get(UserRepository.class).getCurrentUser().getValue().getId().toString(), new Response<BaseItemDto>() {
                 @Override
                 public void onResponse(BaseItemDto response) {
-                    if (response != null && isNonEmptyTrim(response.getId()) && isNonEmptyTrim(response.getPath()) && isNonEmpty(response.getMediaStreams())) {
+                    // disc images (ISO/VIDEO_TS/BDMV) and unprobed .strm items have no stream info (Andy2244#4, #7)
+                    if (response != null && isNonEmptyTrim(response.getId()) && isNonEmptyTrim(response.getPath()) && isNonEmpty(response.getMediaSources())
+                            && (isNonEmpty(response.getMediaStreams()) || canPlayWithoutStreams(response))) {
                         mCurrentItem = response;
                         prepareLaunchExternalPlayer();
                     } else {
@@ -673,7 +676,14 @@ public class ExternalPlayerActivity extends FragmentActivity {
     protected void launchExternalPlayer() {
         isLiveTv = mCurrentItem.getBaseItemType() == BaseItemType.TvChannel;
         final boolean isRemoteStream = isRemoteStream(mCurrentItem, mCurrentMediaSource);
-        if (!isLiveTv && mUseSendPath && !mAllowTranscoding && !isRemoteStream) {
+        final boolean isDiscImage = isDiscImage(mCurrentItem);
+        if (isDiscImage && !mUseSendPath) {
+            // Jellyfin can't stream disc images to an external player, the Zidoo player has to open the file itself
+            Utils.showToast(this, getString(R.string.msg_disc_image_needs_direct_path));
+            finish();
+            return;
+        }
+        if (!isLiveTv && mUseSendPath && (!mAllowTranscoding || isDiscImage) && !isRemoteStream) {
             // build fake streamInfo so report logic can work
             mCurrentStreamInfo = buildStreamInfoSendPath();
             // Just pass the path directly
@@ -735,6 +745,25 @@ public class ExternalPlayerActivity extends FragmentActivity {
      * the url inside it. Such items must never use "direct path" (the Zidoo player can't open a .strm file) and may
      * have no stream info yet (Andy2244/jellyfin-androidtv-zidoo#7).
      */
+    /**
+     * DVD/Blu-ray images and disc folders (VIDEO_TS/BDMV). Jellyfin can't read their streams, but the Zidoo player
+     * plays them (with disc menus) when it gets the file/folder path (Andy2244/jellyfin-androidtv-zidoo#4).
+     */
+    protected static boolean isDiscImage(@Nullable BaseItemDto item) {
+        if (item == null) return false;
+        VideoType type = item.getVideoType();
+        if (type == VideoType.Iso || type == VideoType.Dvd || type == VideoType.BluRay) return true;
+        String path = item.getPath();
+        if (path == null) return false;
+        String lower = path.toLowerCase(Locale.ROOT);
+        return lower.endsWith(".iso") || lower.endsWith(".img");
+    }
+
+    protected static boolean canPlayWithoutStreams(@NonNull BaseItemDto item) {
+        MediaSourceInfo source = isNonEmpty(item.getMediaSources()) ? item.getMediaSources().get(0) : null;
+        return isDiscImage(item) || isRemoteStream(item, source);
+    }
+
     protected static boolean isRemoteStream(@Nullable BaseItemDto item, @Nullable MediaSourceInfo mediaSource) {
         if (mediaSource != null && (mediaSource.getProtocol() == MediaProtocol.Http || mediaSource.getIsRemote())) {
             return true;
@@ -1089,7 +1118,7 @@ public class ExternalPlayerActivity extends FragmentActivity {
 
         String container = mCurrentStreamInfo.getContainer();
         // unknown container (e.g. unprobed .strm) -> let the player sniff it
-        String mimeType = !isNonEmptyTrim(container) || "strm".equalsIgnoreCase(container) ? "video/*" : "video/" + container;
+        String mimeType = !isNonEmptyTrim(container) || "strm".equalsIgnoreCase(container) || isDiscImage(mCurrentItem) ? "video/*" : "video/" + container;
         zidooIntent.setDataAndType(pathUri, mimeType);
         Timber.i("Starting external MovieActivity playback <%s> from <%s> at position <%s> ms, <%s> with path <%s>", mCurrentStreamInfo.getPlayMethod().toString(), pathUri.getHost(), mSeekPosition, getMillisecondsFormated(mSeekPosition), pathUri.getPath());
 
