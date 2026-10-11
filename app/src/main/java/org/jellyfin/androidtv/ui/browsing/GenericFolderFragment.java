@@ -55,6 +55,22 @@ public class GenericFolderFragment extends EnhancedBrowseFragment {
             String header = (mFolder.getBaseItemType() == BaseItemType.Season) ? mFolder.getName() : getString(R.string.lbl_by_name);
             mRows.add(new BrowseRowDef(header, byName).setChunkSize(100));
 
+            // Season page: quick navigation to the other seasons and back to the series
+            if (mFolder.getBaseItemType() == BaseItemType.Season) {
+                String seriesId = mFolder.getSeriesId() != null ? mFolder.getSeriesId() : mFolder.getParentId();
+                if (seriesId != null) {
+                    StdItemQuery seasons = new StdItemQuery();
+                    seasons.setParentId(seriesId);
+                    seasons.setIncludeItemTypes(new String[]{"Season"});
+                    seasons.setSortBy(new String[]{ItemSortBy.SortName});
+                    mRows.add(new BrowseRowDef(getString(R.string.lbl_seasons), seasons).setChunkSize(100));
+
+                    StdItemQuery series = new StdItemQuery();
+                    series.setIds(new String[]{seriesId});
+                    mRows.add(new BrowseRowDef(getString(R.string.lbl_series), series));
+                }
+            }
+
             rowLoader.loadRows(mRows);
         }
     }
