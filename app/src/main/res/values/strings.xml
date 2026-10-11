@@ -631,4 +631,12 @@
     <string name="msg_removed_from_resume">Removed from Continue Watching</string>
     <string name="msg_season_marked_watched">Season marked as watched</string>
     <string name="msg_season_marked_unwatched">Season marked as unwatched</string>
+    <string name="lbl_download_subtitles">Download subtitles</string>
+    <string name="lbl_subtitle_language_pick">Subtitle language</string>
+    <string name="msg_searching_subtitles">Searching subtitles…</string>
+    <string name="msg_no_subtitles_found">No subtitles found. Is a subtitle plugin (e.g. OpenSubtitles) installed on the server?</string>
+    <string name="msg_subtitle_search_failed">Subtitle search failed</string>
+    <string name="msg_subtitles_no_permission">Your Jellyfin user is not allowed to manage subtitles</string>
+    <string name="msg_subtitle_downloaded">Subtitle downloaded, it will be available the next time you play this</string>
+    <string name="msg_subtitle_download_failed">Subtitle download failed</string>
 </resources>

@@ -1361,6 +1361,7 @@ public class FullDetailsActivity extends BaseActivity implements RecordingIndica
                 }
 
                 more.getMenu().findItem(R.id.mediaInfo).setVisible(hasMediaInfo());
+                more.getMenu().findItem(R.id.downloadSubtitles).setVisible(canSearchSubtitles());
                 more.getMenu().findItem(R.id.removeResume).setVisible(canRemoveFromResume());
                 more.getMenu().findItem(R.id.markSeasonWatched).setVisible(hasSeason());
                 more.getMenu().findItem(R.id.markSeasonUnwatched).setVisible(hasSeason());
@@ -1441,6 +1442,12 @@ public class FullDetailsActivity extends BaseActivity implements RecordingIndica
         return hasMediaInfo() || canRemoveFromResume() || hasSeason();
     }
 
+    private boolean canSearchSubtitles() {
+        if (!hasMediaInfo()) return false;
+        BaseItemType type = mBaseItem.getBaseItemType();
+        return type == BaseItemType.Movie || type == BaseItemType.Episode || type == BaseItemType.Video;
+    }
+
     private boolean canRemoveFromResume() {
         return mBaseItem != null && !mBaseItem.getIsFolderItem() && mBaseItem.getUserData() != null
                 && mBaseItem.getUserData().getPlaybackPositionTicks() > 0;
@@ -1505,6 +1512,9 @@ public class FullDetailsActivity extends BaseActivity implements RecordingIndica
                     return true;
                 case R.id.playTrailers:
                     playTrailers();
+                    return true;
+                case R.id.downloadSubtitles:
+                    SubtitleSearchDialog.show(FullDetailsActivity.this, mBaseItem.getId());
                     return true;
                 case R.id.removeResume:
                     removeFromResume();

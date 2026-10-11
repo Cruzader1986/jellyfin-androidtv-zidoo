@@ -30,4 +30,7 @@
     <item
         android:id="@+id/markSeasonUnwatched"
         android:title="@string/lbl_mark_season_unwatched" />
+    <item
+        android:id="@+id/downloadSubtitles"
+        android:title="@string/lbl_download_subtitles" />
 </menu>
