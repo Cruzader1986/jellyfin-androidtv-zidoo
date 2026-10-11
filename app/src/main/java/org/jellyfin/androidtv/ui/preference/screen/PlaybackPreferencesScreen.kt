@@ -131,6 +131,12 @@ class PlaybackPreferencesScreen : OptionsFragment() {
 				depends { userPreferences[UserPreferences.videoPlayer] == PreferredVideoPlayer.EXTERNAL }
 			}
 
+			enum<SegmentSkipBehavior> {
+				setTitle(R.string.pref_segment_skip_title)
+				bind(userPreferences, UserPreferences.segmentSkipBehavior)
+				depends { userPreferences[UserPreferences.videoPlayer] == PreferredVideoPlayer.EXTERNAL }
+			}
+
 			checkbox {
 				setTitle(R.string.lbl_allow_transcode_fallback)
 				setContent(R.string.desc_allow_transcode_fallback)

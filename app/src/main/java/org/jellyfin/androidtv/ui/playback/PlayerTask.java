@@ -19,12 +19,16 @@ import android.app.Activity;
 import android.content.Intent;
 import android.os.Handler;
 import android.os.HandlerThread;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.util.Pair;
 
+import org.jellyfin.androidtv.R;
 import org.jellyfin.androidtv.auth.repository.UserRepository;
+import org.jellyfin.androidtv.preference.UserPreferences;
+import org.jellyfin.androidtv.preference.constant.SegmentSkipBehavior;
 import org.jellyfin.androidtv.data.compat.StreamInfo;
 import org.jellyfin.androidtv.preference.constant.LanguagesAudio;
 import org.jellyfin.androidtv.util.AudioSubtitleHelper;
@@ -40,7 +44,10 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.koin.java.KoinJavaComponent;
 
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import kotlin.Lazy;
 import timber.log.Timber;
@@ -534,6 +541,13 @@ class ZidooReportTask extends ZidooTask {
     // true when the Zidoo player reported that the video played to the end (end_by=playback_completion)
     public boolean mPlaybackCompleted = false;
 
+    // Auto-skip of Jellyfin media segments (intro/credits)
+    static final int SEGMENT_MIN_POLL_INTERVAL = 500; // fastest status poll while waiting for a segment start
+    static final int SEGMENT_MIN_REMAINING = 2000; // don't bother skipping when less than this is left of a segment
+    static final int SEGMENT_END_MARGIN = 1000; // when credits run to the end, seek to just before the end
+    private List<MediaSegmentFetcher.Segment> mSegments = null;
+    private final Set<MediaSegmentFetcher.Segment> mHandledSegments = new HashSet<>();
+
     public ZidooReportTask(@NonNull ZidooTask startupTask, int seekPos, int taskDelay) {
         super(startupTask.mActivity, startupTask.mPrefs, startupTask.mItem, startupTask.mStreamInfo, taskDelay);
         mZidooIdentifierHashStartup = startupTask.mZidooIdentifierHashStartup;
@@ -563,6 +577,7 @@ class ZidooReportTask extends ZidooTask {
                     mInitialAudioSubIdx = new Pair<>(mCurrentAudioIdx, mCurrentSubIdx); // first set after API_ZIDOO_HTTP_API_REPORT_LOOP_INTERVAL ??
                     Timber.d("ZidooReportTask Initial audioIdx: <%s> subTitleIdx: <%s>", mCurrentAudioIdx, mCurrentSubIdx);
                 }
+                checkSegments();
                 if (mPlayMethod != PlayMethod.Transcode && mPlayPos != null && mPlayPos > 0) {
                     ReportingHelper.reportProgress(null, mItem, mStreamInfo, (long) mPlayPos * RUNTIME_TICKS_TO_MS, false);
                     Timber.d("ZidooReportTask reportProgress Status: <%s> Position: <%s> audioIdx: <%s> subIdx: <%s>", mPlayStatus, getMillisecondsFormated(mPlayPos), mCurrentAudioIdx, mCurrentSubIdx);
@@ -573,6 +588,7 @@ class ZidooReportTask extends ZidooTask {
                 started = true;
 
                 setBestTracks(); // set audio/video
+                loadSegments();
 
                 if (mPlayPos == null) {
                     ReportingHelper.reportStart(mItem, null);
@@ -600,9 +616,63 @@ class ZidooReportTask extends ZidooTask {
                 Timber.d("ZidooReportTask detected Zidoo player http-api status error, trying again in 1000 ms.");
             }
         } else {
-            post(this, API_ZIDOO_HTTP_API_REPORT_LOOP_INTERVAL);
+            post(this, nextReportDelay());
             mZidooReportTaskErrorCount = 0; // reset
         }
+    }
+
+    private void loadSegments() {
+        // Transcoded streams report positions relative to the transcode start, so seeking by segment time is unreliable
+        if (mPlayMethod == PlayMethod.Transcode) return;
+        SegmentSkipBehavior behavior = KoinJavaComponent.<UserPreferences>get(UserPreferences.class).get(UserPreferences.Companion.getSegmentSkipBehavior());
+        List<String> types = MediaSegmentFetcher.typesFor(behavior);
+        if (types.isEmpty()) return;
+        mSegments = MediaSegmentFetcher.fetchBlocking(mItem.getId(), types);
+        Timber.i("ZidooReportTask loaded <%d> media segments %s", mSegments.size(), mSegments);
+    }
+
+    private void checkSegments() {
+        if (mSegments == null || mSegments.isEmpty() || mPlayPos == null) return;
+        for (MediaSegmentFetcher.Segment segment : mSegments) {
+            if (mHandledSegments.contains(segment)) continue;
+            if (mPlayPos >= segment.endMs) {
+                // already past it (resumed later or seeked) -> never skip it afterwards
+                mHandledSegments.add(segment);
+            } else if (mPlayPos >= segment.startMs) {
+                mHandledSegments.add(segment);
+                if (segment.endMs - mPlayPos < SEGMENT_MIN_REMAINING) continue;
+
+                int target = segment.endMs;
+                Long runtimeTicks = mStreamInfo.getRunTimeTicks() != null ? mStreamInfo.getRunTimeTicks() : mItem.getRunTimeTicks();
+                if (runtimeTicks != null && runtimeTicks > 0) {
+                    int runtimeMs = (int) (runtimeTicks / RUNTIME_TICKS_TO_MS);
+                    if (target > runtimeMs - SEGMENT_END_MARGIN) target = runtimeMs - SEGMENT_END_MARGIN;
+                }
+                if (target <= mPlayPos) continue;
+
+                if (setZidooSeekPosition(target)) {
+                    Timber.i("ZidooReportTask skipped segment <%s> from <%s> to <%s>", segment, getMillisecondsFormated(mPlayPos), getMillisecondsFormated(target));
+                    mPlayPos = target;
+                    final int message = "Outro".equals(segment.type) ? R.string.msg_segment_skipped_credits : R.string.msg_segment_skipped_intro;
+                    mActivity.runOnUiThread(() -> Toast.makeText(mActivity.getApplicationContext(), message, Toast.LENGTH_SHORT).show());
+                } else {
+                    Timber.w("ZidooReportTask failed to skip segment <%s>", segment);
+                }
+                return;
+            }
+        }
+    }
+
+    // Poll sooner when a segment that should be skipped starts before the next regular report tick
+    private int nextReportDelay() {
+        int delay = API_ZIDOO_HTTP_API_REPORT_LOOP_INTERVAL;
+        if (mSegments == null || mPlayPos == null || mPlayStatus != API_ZIDOO_HTTP_API_VIDEOPLAY_STATUS_PLAYING) return delay;
+        for (MediaSegmentFetcher.Segment segment : mSegments) {
+            if (mHandledSegments.contains(segment)) continue;
+            int untilStart = segment.startMs - mPlayPos;
+            if (untilStart < delay) delay = Math.max(SEGMENT_MIN_POLL_INTERVAL, untilStart);
+        }
+        return delay;
     }
 
     private void updateFromResult(@NonNull Intent data) {

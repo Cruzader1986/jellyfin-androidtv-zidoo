@@ -51,6 +51,7 @@ import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.MediaSourceInfo
 import org.jellyfin.sdk.model.api.MediaStreamType
 import org.jellyfin.sdk.model.api.SeriesStatus
+import org.jellyfin.sdk.model.api.Video3dFormat
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import strings.isNotNullOrBlank
@@ -449,6 +450,18 @@ class InfoRowView @JvmOverloads constructor(
                 addBlockText("720p", colorMediaVideo)
             else
                 addBlockText(context.getString(R.string.lbl_sd), colorMediaVideo)
+
+            // 3D format (set by Jellyfin from file name tags like "3D.MVC"/"3D.HSBS", NFO or probing)
+            item.video3dFormat?.let {
+                val label = when (it) {
+                    Video3dFormat.MVC -> "3D MVC"
+                    Video3dFormat.FULL_SIDE_BY_SIDE -> "3D FSBS"
+                    Video3dFormat.HALF_SIDE_BY_SIDE -> "3D HSBS"
+                    Video3dFormat.FULL_TOP_AND_BOTTOM -> "3D FTAB"
+                    Video3dFormat.HALF_TOP_AND_BOTTOM -> "3D HTAB"
+                }
+                addBlockText(label, colorMediaGolden)
+            }
 
             // Video range: hybrid formats (e.g. Dolby Vision with HDR10 fallback) get one badge per format
             val rangeType = videoStream.videoRangeType

@@ -589,4 +589,10 @@
     <string name="desc_force_stereo_audio">Transcode multichannel audio into Stereo.</string>
     <string name="lbl_show_transcode_info_popup">Show transcode info popup</string>
     <string name="desc_show_transcode_info_popup">Show a info popup before playback, if a transcode is happening.</string>
+    <string name="pref_segment_skip_title">Auto-skip intro/credits (Zidoo player)</string>
+    <string name="lbl_segment_skip_off">Off</string>
+    <string name="lbl_segment_skip_intro">Intro</string>
+    <string name="lbl_segment_skip_intro_credits">Intro &amp; credits</string>
+    <string name="msg_segment_skipped_intro">Skipped intro</string>
+    <string name="msg_segment_skipped_credits">Skipped credits</string>
 </resources>

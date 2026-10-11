@@ -93,6 +93,11 @@ class UserPreferences(context: Context) : SharedPreferenceStore(
 		var externalVideoPlayerSendPath = booleanPreference("pref_send_path_external", false)
 
 		/**
+		 * Automatically skip Jellyfin media segments (intro/credits) in the Zidoo player
+		 */
+		var segmentSkipBehavior = enumPreference("pref_segment_skip", SegmentSkipBehavior.OFF)
+
+		/**
 		 * Allow transcoding fallback in DirectPath Mode
 		 */
 		var enableTranscodingFallback = booleanPreference("pref_enable_transcoding_fallback", true)
