@@ -264,8 +264,15 @@ public class PlayerApiHelpers {
         String nfs_root = null;
         String nfs_share = null;
         if (isNonEmpty(pathUri.getPathSegments())) {
-            nfs_share = pathUri.getPathSegments().get(0); // init with simple case first
-            nfs_root = pathUri.getHost() + "/" + nfs_share;
+            java.util.List<String> segments = pathUri.getPathSegments();
+            // Guess the NFS export root when no "/:" marker is given (Andy2244/jellyfin-androidtv-zidoo#11).
+            // Mounting a sub directory of an export generally works, mounting a parent of it never does,
+            // so prefer the deeper guess for well known NAS layouts.
+            int depth = guessNfsExportDepth(segments);
+            nfs_share = segments.get(depth - 1);
+            StringBuilder root = new StringBuilder(pathUri.getHost());
+            for (int i = 0; i < depth; i++) root.append('/').append(segments.get(i));
+            nfs_root = root.toString();
         }
         String[] splitArray = pathUri.getPath().split("/:", 2); // we use "/:" as marker for the export path
         if (splitArray.length > 1) {
@@ -276,6 +283,22 @@ public class PlayerApiHelpers {
             nfs_root = pathUri.getHost() + splitArray[0];
         }
         return new Pair<>(nfs_root, nfs_share);
+    }
+
+    /**
+     * Number of leading path segments that make up the NFS export, e.g.
+     * Unraid /mnt/user/media (3), TrueNAS /mnt/pool/dataset (3), Synology /volume1/video (2), /export/media (2),
+     * otherwise the first segment (1). Always leaves at least the file name outside the export.
+     */
+    static int guessNfsExportDepth(@NonNull java.util.List<String> segments) {
+        int depth = 1;
+        String first = segments.get(0).toLowerCase(java.util.Locale.ROOT);
+        if (first.equals("mnt") || first.equals("media")) {
+            depth = 3;
+        } else if (first.matches("volume\\d+") || first.equals("export") || first.equals("exports") || first.equals("srv") || first.equals("share") || first.equals("shares")) {
+            depth = 2;
+        }
+        return Math.max(1, Math.min(depth, segments.size() - 1));
     }
 
     public static void testNFS(@NonNull Intent initIntent) {

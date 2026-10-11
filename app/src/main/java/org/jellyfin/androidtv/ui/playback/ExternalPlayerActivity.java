@@ -900,6 +900,9 @@ public class ExternalPlayerActivity extends FragmentActivity {
         }
     }
 
+    // NFS export root for the next direct path MovieActivity start (see startExternalZidooMovieActivityDirectPath)
+    private String mDirectPathNfsRoot = null;
+
     private void startExternalZidooMovieActivityDirectPath(@NonNull Uri pathUri) {
         if (!"smb".equals(pathUri.getScheme()) && !"nfs".equals(pathUri.getScheme())) {
             Utils.showToast(ExternalPlayerActivity.this, "Error: Unsupported mount path Uri-Scheme!");
@@ -908,9 +911,14 @@ public class ExternalPlayerActivity extends FragmentActivity {
             return;
         }
 
+        String nfsRoot = null;
         if ("nfs".equals(pathUri.getScheme())) {
+            // The player needs to know where the NFS export ends (it's not always the first folder like an SMB share)
+            nfsRoot = PlayerApiHelpers.getNfsRoot(pathUri).first;
             pathUri = Uri.parse(pathUri.toString().replace("/:", "")).normalizeScheme(); // fix Uri
+            Timber.i("Using NFS direct path <%s> with root_path <%s>", pathUri, nfsRoot);
         }
+        mDirectPathNfsRoot = nfsRoot;
         startExternalZidooMovieActivity(pathUri);
 
 //        new MountTask(this, pathUri, new Response<>() {
@@ -1056,6 +1064,11 @@ public class ExternalPlayerActivity extends FragmentActivity {
         }
         zidooIntent.putExtra(API_ZIDOO_RETURN_RESULT, true);
         addZidooSubtitleExtras(zidooIntent, pathUri);
+        if ("nfs".equals(pathUri.getScheme()) && isNonEmptyTrim(mDirectPathNfsRoot)) {
+            zidooIntent.putExtra(API_ZIDOO_NET_MODE, API_ZIDOO_NET_MODE_NFS);
+            zidooIntent.putExtra(API_ZIDOO_NET_NFS_ROOT, mDirectPathNfsRoot);
+        }
+        mDirectPathNfsRoot = null;
 
         String container = mCurrentStreamInfo.getContainer();
         zidooIntent.setDataAndType(pathUri, "video/" + container);
