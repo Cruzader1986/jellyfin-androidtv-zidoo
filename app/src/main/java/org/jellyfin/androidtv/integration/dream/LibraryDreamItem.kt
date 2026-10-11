@@ -6,4 +6,5 @@ import org.jellyfin.sdk.model.api.BaseItemDto
 data class LibraryDreamItem(
 	val baseItem: BaseItemDto,
 	val background: Drawable,
+	val logo: Drawable? = null,
 )

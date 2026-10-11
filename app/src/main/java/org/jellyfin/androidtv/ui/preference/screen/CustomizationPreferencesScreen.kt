@@ -35,6 +35,13 @@ class CustomizationPreferencesScreen : OptionsFragment() {
 			}
 
 			checkbox {
+				setTitle(R.string.pref_backdrop_blur)
+				setContent(R.string.pref_backdrop_blur_description)
+				bind(userPreferences, UserPreferences.backdropBlur)
+				depends { userPreferences[UserPreferences.backdropType] != BackgroundType.NONE }
+			}
+
+			checkbox {
 				setTitle(R.string.lbl_show_premieres)
 				setContent(R.string.desc_premieres)
 				bind(userPreferences, UserPreferences.premieresEnabled)

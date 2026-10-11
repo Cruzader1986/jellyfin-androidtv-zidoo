@@ -5,6 +5,7 @@ import android.util.AttributeSet
 import android.view.LayoutInflater
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.widget.FrameLayout
+import androidx.core.view.isVisible
 import org.jellyfin.androidtv.databinding.ViewDreamLibraryItemBinding
 import org.jellyfin.androidtv.util.KenBurnsTransitionGenerator
 
@@ -30,5 +31,9 @@ class LibraryDreamItemView @JvmOverloads constructor(
 
 		binding.background.setImageDrawable(item.background)
 		binding.title.text = item.baseItem.name
+		// Show the media logo instead of the plain title when available (ported from jellyfin-androidtv a82fcf8)
+		binding.logo.setImageDrawable(item.logo)
+		binding.logo.isVisible = item.logo != null
+		binding.title.isVisible = item.logo == null
 	}
 }

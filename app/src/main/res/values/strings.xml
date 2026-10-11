@@ -595,4 +595,6 @@
     <string name="lbl_segment_skip_intro_credits">Intro &amp; credits</string>
     <string name="msg_segment_skipped_intro">Skipped intro</string>
     <string name="msg_segment_skipped_credits">Skipped credits</string>
+    <string name="pref_backdrop_blur">Blur backdrops</string>
+    <string name="pref_backdrop_blur_description">Soften background images so text on top is easier to read</string>
 </resources>

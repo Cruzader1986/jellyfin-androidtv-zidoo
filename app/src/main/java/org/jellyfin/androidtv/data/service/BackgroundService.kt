@@ -142,6 +142,7 @@ class BackgroundService(
 			BackgroundType.LOW -> Pair(windowSize.height / 2, DEFAULT_IMAGE_QUALITY)
 		}
 
+		val blur = backdropBlurRadius(maxH)
 		return mapIndexed { index, tag ->
 			api.imageApi.getItemImageUrl(
 				itemId = itemId,
@@ -149,10 +150,18 @@ class BackgroundService(
 				tag = tag,
 				imageIndex = index,
 				maxHeight = maxH,
-				quality = maxQ
+				quality = maxQ,
+				blur = blur,
 			)
 		}
 	}
+
+	/**
+	 * Blur radius for backdrops (ported from jellyfin-androidtv ddc9a01, which uses a Compose blur that needs
+	 * Android 12). The Jellyfin server blurs the image instead, scaled to the requested image height.
+	 */
+	private fun backdropBlurRadius(maxHeight: Int): Int? =
+		if (userPreferences[UserPreferences.backdropBlur]) (maxHeight * 15 / 1080).coerceIn(4, 30) else null
 
 	/**
 	 * Use all available backdrops from [baseItem] as background.
@@ -216,7 +225,8 @@ class BackgroundService(
 				imageType = ImageType.BACKDROP,
 				tag = searchHint.backdropImageTag,
 				maxHeight = maxH,
-				quality = maxQ
+				quality = maxQ,
+				blur = backdropBlurRadius(maxH),
 			)
 		})
 

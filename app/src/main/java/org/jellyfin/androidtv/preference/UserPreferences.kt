@@ -39,6 +39,11 @@ class UserPreferences(context: Context) : SharedPreferenceStore(
 		var backdropType = enumPreference("pref_backdrop_type", BackgroundType.NORMAL)
 
 		/**
+		 * Blur backdrop images (rendered server side, so it also works on Android 9)
+		 */
+		var backdropBlur = booleanPreference("pref_backdrop_blur", true)
+
+		/**
 		 * Show premieres on home screen
 		 */
 		var premieresEnabled = booleanPreference("pref_enable_premieres", false)
@@ -283,6 +288,7 @@ class UserPreferences(context: Context) : SharedPreferenceStore(
 	fun getUiSettingsHash(): Int {
 		return this[appTheme].hashCode() +
 				this[backdropType].hashCode() +
+				this[backdropBlur].hashCode() +
 				this[premieresEnabled].hashCode() +
 				this[clockBehavior].hashCode() +
 				this[defaultRatingType].hashCode() +

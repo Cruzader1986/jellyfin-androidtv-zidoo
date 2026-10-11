@@ -116,9 +116,34 @@ class LibraryDreamService : DreamService() {
 		}
 	}
 
+	private suspend fun loadLogo(item: BaseItemDto): Drawable? {
+		val tag = item.imageTags?.get(ImageType.LOGO) ?: return null
+
+		val url = api.imageApi.getItemImageUrl(
+			itemId = item.id,
+			imageType = ImageType.LOGO,
+			tag = tag,
+			format = ImageFormat.WEBP,
+			maxHeight = 300,
+		)
+
+		return withContext(Dispatchers.IO) {
+			try {
+				Glide.with(binding.root)
+					.load(url)
+					.submit()
+					.get()
+			} catch (err: Exception) {
+				Timber.w(err, "Unable to load logo for screensaver")
+				null
+			}
+		}
+	}
+
 	private suspend fun update() {
 		val item = getRandomItem()
 		val background = item?.let { loadBackdrop(it) }
+		val logo = item?.takeIf { background != null }?.let { loadLogo(it) }
 
 		withContext(Dispatchers.Main) {
 			if (item == null || background == null) {
@@ -128,6 +153,7 @@ class LibraryDreamService : DreamService() {
 					item = LibraryDreamItem(
 						baseItem = item,
 						background = background,
+						logo = logo,
 					)
 				)
 				showNextView()
