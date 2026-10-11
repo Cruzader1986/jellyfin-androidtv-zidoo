@@ -13,6 +13,7 @@ import org.jellyfin.androidtv.ui.home.HomeFragment
 import org.jellyfin.androidtv.ui.home.HomeToolbarFragment
 import org.jellyfin.androidtv.ui.playback.MediaManager
 import org.jellyfin.androidtv.ui.shared.BaseActivity
+import org.jellyfin.androidtv.util.update.UpdatePrompt
 import org.koin.android.ext.android.get
 import org.koin.android.ext.android.inject
 
@@ -29,6 +30,8 @@ class MainActivity : BaseActivity(R.layout.fragment_content_view) {
 			.commit()
 
 		backgroundService.attach(this)
+
+		UpdatePrompt.checkOnStartup(this)
 	}
 
 	private var doubleBackToExitPressedOnce = false

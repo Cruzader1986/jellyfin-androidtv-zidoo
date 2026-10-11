@@ -53,6 +53,17 @@ class UserPreferences(context: Context) : SharedPreferenceStore(
 		 */
 		var premieresEnabled = booleanPreference("pref_enable_premieres", false)
 
+/* Updates */
+		/**
+		 * Check GitHub releases for a newer version on startup
+		 */
+		var checkForUpdates = booleanPreference("pref_check_updates", true)
+
+		/**
+		 * Release version the user chose to skip
+		 */
+		var skippedUpdateVersion = stringPreference("pref_skipped_update_version", "")
+
 /* Playback - General*/
 		/**
 		 * Maximum bitrate in megabit for playback. A value of [MAX_BITRATE_AUTO] is used when
