@@ -8,3 +8,8 @@ build/
 captures/
 output-metadata.json
 *.apk
+
+# Release signing key - never commit
+/signing/
+*.jks
+*.keystore

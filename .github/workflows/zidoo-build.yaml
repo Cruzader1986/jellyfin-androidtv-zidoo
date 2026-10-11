@@ -21,6 +21,24 @@ jobs:
           distribution: temurin
           java-version: 17
           cache: gradle
+      - name: Set up release signing
+        env:
+          SIGNING_KEYSTORE_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
+          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+        run: |
+          if [ -z "$SIGNING_KEYSTORE_BASE64" ]; then
+            echo "::warning::No signing secrets set - the APK will be signed with a throwaway debug key"
+            exit 0
+          fi
+          echo "$SIGNING_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          {
+            echo "STOREFILE=$RUNNER_TEMP/release.jks"
+            echo "KEYALIAS=$SIGNING_KEY_ALIAS"
+            echo "KEYPASSWORD=$SIGNING_KEY_PASSWORD"
+            echo "STOREPASSWORD=$SIGNING_STORE_PASSWORD"
+          } >> local.properties
       - name: Assemble release APK
         run: ./gradlew --no-daemon assembleRelease
       - name: Upload APK
