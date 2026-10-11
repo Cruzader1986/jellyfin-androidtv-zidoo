@@ -8,6 +8,7 @@ import android.graphics.drawable.PaintDrawable
 import android.text.TextUtils
 import android.text.format.DateFormat
 import android.util.AttributeSet
+import android.util.LruCache
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.ViewGroup
@@ -20,6 +21,11 @@ import androidx.annotation.DrawableRes
 import androidx.appcompat.widget.AppCompatImageView
 import androidx.appcompat.widget.AppCompatTextView
 import androidx.core.view.doOnPreDraw
+import androidx.lifecycle.findViewTreeLifecycleOwner
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import me.carleslc.kotlinextensions.standard.isNotNull
 import me.carleslc.kotlinextensions.time.milliseconds
 import org.jellyfin.androidtv.R
@@ -38,6 +44,8 @@ import org.jellyfin.androidtv.util.sdk.compat.asSdk
 import org.jellyfin.androidtv.util.setMarginVertical
 import org.jellyfin.androidtv.util.setPaddingHorizontal
 import org.jellyfin.androidtv.util.sp
+import org.jellyfin.sdk.api.client.ApiClient
+import org.jellyfin.sdk.api.client.extensions.userLibraryApi
 import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.MediaSourceInfo
@@ -61,6 +69,7 @@ class InfoRowView @JvmOverloads constructor(
 ) : LinearLayoutAbs(context, attrs, defStyleAttr, defStyleRes), KoinComponent {
 
     private val userPreferences by inject<UserPreferences>()
+    private val api by inject<ApiClient>()
 
     private var layoutTextSize: Int
     private val image_vMargin: Int
@@ -86,6 +95,11 @@ class InfoRowView @JvmOverloads constructor(
         @ColorInt val colorMediaVideo = Color.HSVToColor(blockAlpha, floatArrayOf(20f,0.08f,0.6f))
         @ColorInt val colorMediaAudio = Color.HSVToColor(blockAlpha, floatArrayOf(170f,0.06f,0.6f))
         @ColorInt val colorGreyMid = Color.HSVToColor(blockAlpha, floatArrayOf(0f,0f,0.5f))
+
+        // Items loaded through the legacy apiclient lose MediaStream.VideoRangeType. Cache the value per
+        // media source id after fetching the item once with the SDK ("" = server did not provide one).
+        private val videoRangeCache = LruCache<String, String>(500)
+        private val pendingVideoRangeFetches = HashSet<String>()
     }
 
     init {
@@ -207,7 +221,7 @@ class InfoRowView @JvmOverloads constructor(
             addCriticInfo(item)
 
         item.mediaSources?.getOrNull(sourceIdx ?: 0)?.takeUnless { it.mediaStreams.isNullOrEmpty() }?.let {
-            addMediaDetails(it)
+            addMediaDetails(it, item)
         }
     }
 
@@ -363,7 +377,53 @@ class InfoRowView @JvmOverloads constructor(
         }
     }
 
-    private fun addMediaDetails(mediaSource: MediaSourceInfo) {
+    /**
+     * Badges for the server's VideoRangeType (ported from jellyfin-androidtv 9dd71b7).
+     * Returns null when the range type is missing or unknown so the caller can fall back.
+     */
+    private fun videoRangeBadges(rangeType: String?): List<String>? = when (rangeType?.lowercase()) {
+        "sdr" -> listOf("SDR")
+        "hdr10" -> listOf("HDR10")
+        "hdr10plus" -> listOf("HDR10+")
+        "hlg" -> listOf("HLG")
+        "dovi", "doviinvalid" -> listOf("Dolby Vision")
+        "doviwithhdr10" -> listOf("Dolby Vision", "HDR10")
+        "doviwithhlg" -> listOf("Dolby Vision", "HLG")
+        "doviwithsdr" -> listOf("Dolby Vision", "SDR")
+        "doviwithel" -> listOf("Dolby Vision EL")
+        "doviwithhdr10plus" -> listOf("Dolby Vision", "HDR10+")
+        "doviwithelhdr10plus" -> listOf("Dolby Vision EL", "HDR10+")
+        else -> null
+    }
+
+    private fun requestVideoRange(item: BaseItemDto, mediaSourceId: String) {
+        synchronized(pendingVideoRangeFetches) {
+            if (!pendingVideoRangeFetches.add(mediaSourceId)) return
+        }
+        val lifecycleOwner = findViewTreeLifecycleOwner()
+        if (lifecycleOwner == null) {
+            synchronized(pendingVideoRangeFetches) { pendingVideoRangeFetches.remove(mediaSourceId) }
+            return
+        }
+        lifecycleOwner.lifecycleScope.launch {
+            val fetched = withContext(Dispatchers.IO) {
+                runCatching { api.userLibraryApi.getItem(itemId = item.id).content }.getOrNull()
+            }
+            fetched?.mediaSources?.forEach { source ->
+                val id = source.id ?: return@forEach
+                val rangeType = source.mediaStreams?.firstOrNull { it.type == MediaStreamType.VIDEO }?.videoRangeType
+                videoRangeCache.put(id, rangeType ?: "")
+            }
+            if (videoRangeCache.get(mediaSourceId) == null) videoRangeCache.put(mediaSourceId, "")
+            synchronized(pendingVideoRangeFetches) { pendingVideoRangeFetches.remove(mediaSourceId) }
+
+            // Redraw if this view still shows the same item
+            val shownId = baseItem?.id?.toString() ?: rowItem?.itemId
+            if (fetched != null && shownId != null && shownId.equals(item.id.toString(), ignoreCase = true)) updateView()
+        }
+    }
+
+    private fun addMediaDetails(mediaSource: MediaSourceInfo, item: BaseItemDto) {
         mediaSource.mediaStreams?.firstOrNull {
             it.isNotNull() &&
             it.type == MediaStreamType.VIDEO &&
@@ -390,7 +450,20 @@ class InfoRowView @JvmOverloads constructor(
             else
                 addBlockText(context.getString(R.string.lbl_sd), colorMediaVideo)
 
-            if (videoStream.displayTitle?.contains("hdr", true) == true) {
+            // Video range: hybrid formats (e.g. Dolby Vision with HDR10 fallback) get one badge per format
+            val rangeType = videoStream.videoRangeType
+                ?: mediaSource.id?.let { videoRangeCache.get(it) }?.takeIf { it.isNotEmpty() }
+            if (rangeType == null && mediaSource.id != null && videoRangeCache.get(mediaSource.id!!) == null) {
+                requestVideoRange(item, mediaSource.id!!)
+            }
+            val videoRanges = videoRangeBadges(rangeType)
+            if (videoRanges != null) {
+                videoRanges.forEach {
+                    if (it == "SDR") addBlockText(it, colorMediaVideo)
+                    else addBlockTextRes(it, R.drawable.block_text_bg_rainbow)
+                }
+            } else if (videoStream.displayTitle?.contains("hdr", true) == true) {
+                // older servers / unknown range type: fall back to the display title
                 addBlockTextRes("HDR", R.drawable.block_text_bg_rainbow)
             } else if (videoStream.displayTitle?.contains("sdr", true) == true) {
                 addBlockText("SDR", colorMediaVideo)
