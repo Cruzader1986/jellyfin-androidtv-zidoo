@@ -11,7 +11,7 @@ plugins {
 
 android {
 	namespace = "org.jellyfin.androidtv"
-	compileSdk = gradleLocalProperties(rootDir).getProperty("COMPILE_SDK_NR", "32").toInt()
+	compileSdk = gradleLocalProperties(rootDir).getProperty("COMPILE_SDK_NR", "34").toInt()
 	ndkVersion = "26.1.10909125"
 
 	defaultConfig {
@@ -38,17 +38,17 @@ android {
 
 	compileOptions {
 		isCoreLibraryDesugaringEnabled = true
-        sourceCompatibility = JavaVersion.valueOf(gradleLocalProperties(rootDir).getProperty("JAVA_VERSION", "VERSION_1_8"))
-        targetCompatibility = JavaVersion.valueOf(gradleLocalProperties(rootDir).getProperty("JAVA_VERSION", "VERSION_1_8"))
+        sourceCompatibility = JavaVersion.valueOf(gradleLocalProperties(rootDir).getProperty("JAVA_VERSION", "VERSION_17"))
+        targetCompatibility = JavaVersion.valueOf(gradleLocalProperties(rootDir).getProperty("JAVA_VERSION", "VERSION_17"))
     }
 
 	kotlinOptions {
-		jvmTarget = gradleLocalProperties(rootDir).getProperty("KOTLIN_JVM_TARGET", "1.8")
+		jvmTarget = gradleLocalProperties(rootDir).getProperty("KOTLIN_JVM_TARGET", "17")
 	}
 
 	kotlin {
 		jvmToolchain {
-			(this as JavaToolchainSpec).languageVersion.set(JavaLanguageVersion.of(gradleLocalProperties(rootDir).getProperty("JAVA_VERSION_NR", "8")))
+			(this as JavaToolchainSpec).languageVersion.set(JavaLanguageVersion.of(gradleLocalProperties(rootDir).getProperty("JAVA_VERSION_NR", "17")))
 		}
 	}
 
@@ -58,19 +58,25 @@ android {
 //		}
 //	}
 
+	// Release signing is read from local.properties (STOREFILE, KEYALIAS, KEYPASSWORD, STOREPASSWORD).
+	// When no keystore is configured (fresh clone / CI) the release build falls back to the debug key
+	// so it can still be built and side-loaded.
+	val releaseStoreFile = gradleLocalProperties(rootDir).getProperty("STOREFILE")
 	signingConfigs {
-		create("release") {
-			storeFile = file(gradleLocalProperties(rootDir).getProperty("STOREFILE"))
-			keyAlias = gradleLocalProperties(rootDir).getProperty("KEYALIAS")
-			keyPassword = gradleLocalProperties(rootDir).getProperty("KEYPASSWORD")
-			storePassword = gradleLocalProperties(rootDir).getProperty("STOREPASSWORD")
+		if (!releaseStoreFile.isNullOrBlank()) {
+			create("release") {
+				storeFile = file(releaseStoreFile)
+				keyAlias = gradleLocalProperties(rootDir).getProperty("KEYALIAS")
+				keyPassword = gradleLocalProperties(rootDir).getProperty("KEYPASSWORD")
+				storePassword = gradleLocalProperties(rootDir).getProperty("STOREPASSWORD")
+			}
 		}
 	}
 
 	buildTypes {
 		getByName("release") {
 			matchingFallbacks += listOf()
-			signingConfig = signingConfigs.getByName("release")
+			signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
 		}
 
 		val release by getting {
@@ -136,6 +142,7 @@ dependencies {
 	implementation(projects.playback)
 	implementation(projects.preference)
 	implementation(libs.jellyfin.apiclient)
+	implementation(libs.volley)
 	implementation(libs.jellyfin.sdk) {
 		// Change version if desired
 		val sdkVersion = findProperty("sdk.version")?.toString()

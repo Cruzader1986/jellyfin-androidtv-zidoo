@@ -1,6 +1,7 @@
 package org.jellyfin.androidtv.di
 
 import org.jellyfin.androidtv.BuildConfig
+import org.jellyfin.androidtv.auth.apiclient.ModernAuthVolleyHttpClient
 import org.jellyfin.androidtv.auth.repository.ServerRepository
 import org.jellyfin.androidtv.auth.repository.UserRepository
 import org.jellyfin.androidtv.auth.repository.UserRepositoryImpl
@@ -72,6 +73,9 @@ val appModule = module {
 			appInfo = AppInfo("Android TV", BuildConfig.VERSION_NAME)
 			logger = AndroidLogger()
 			android(androidApplication())
+			// Current Jellyfin servers reject the legacy X-Emby-Authorization / X-MediaBrowser-Token
+			// headers; send the token in the modern Authorization header instead.
+			httpClient = ModernAuthVolleyHttpClient(logger, androidApplication())
 		}
 	}
 

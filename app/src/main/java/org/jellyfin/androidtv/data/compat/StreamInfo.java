@@ -271,7 +271,7 @@ public class StreamInfo {
 
         String tempVar6 = item.getPlaySessionId();
         list.add(new NameValuePair("PlaySessionId", (tempVar6 != null) ? tempVar6 : ""));
-        list.add(new NameValuePair("api_key", (accessToken != null) ? accessToken : ""));
+        list.add(new NameValuePair("ApiKey", (accessToken != null) ? accessToken : ""));
 
         String liveStreamId = item.getMediaSource() == null ? null : item.getMediaSource().getLiveStreamId();
         list.add(new NameValuePair("LiveStreamId", (liveStreamId != null) ? liveStreamId : ""));
@@ -344,7 +344,7 @@ public class StreamInfo {
                 info.setUrl(String.format("%1$s/Videos/%2$s/%3$s/Subtitles/%4$s/%5$s/Stream.%6$s", baseUrl, getItemId(), getMediaSourceId(), String.valueOf(stream.getIndex()), String.valueOf(startPositionTicks), subtitleProfile.getFormat()));
 
                 if (!Utils.isEmpty(accessToken)) {
-                    info.setUrl(info.getUrl() + "?api_key=" + accessToken);
+                    info.setUrl(info.getUrl() + "?ApiKey=" + accessToken);
                 }
             } else {
                 info.setUrl(stream.getPath());

@@ -125,7 +125,7 @@ public class GetPlaybackInfoResponse extends Response<PlaybackInfoResponse> {
                 dict.put("Static", "true");
                 dict.put("MediaSourceId", mediaSourceInfo.getId());
                 dict.put("DeviceId", deviceInfo.getId());
-                dict.put("api_key", apiClient.getAccessToken());
+                dict.put("ApiKey", apiClient.getAccessToken());
 
                 if (mediaSourceInfo.getETag() != null && mediaSourceInfo.getETag().length() > 0){
                     dict.put("Tag", mediaSourceInfo.getETag());
@@ -155,7 +155,7 @@ public class GetPlaybackInfoResponse extends Response<PlaybackInfoResponse> {
             dict.put("Static", "true");
             dict.put("MediaSourceId", mediaSourceInfo.getId());
             dict.put("DeviceId", deviceInfo.getId());
-            dict.put("api_key", apiClient.getAccessToken());
+            dict.put("ApiKey", apiClient.getAccessToken());
 
             if (mediaSourceInfo.getETag() != null && mediaSourceInfo.getETag().length() > 0){
                 dict.put("Tag", mediaSourceInfo.getETag());

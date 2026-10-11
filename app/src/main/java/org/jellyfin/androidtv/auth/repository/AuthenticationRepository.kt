@@ -14,14 +14,20 @@ import org.jellyfin.sdk.Jellyfin
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.exception.ApiClientException
 import org.jellyfin.sdk.api.client.exception.TimeoutException
-import org.jellyfin.sdk.api.client.extensions.authenticateUserByName
-import org.jellyfin.sdk.api.client.extensions.authenticateWithQuickConnect
+import org.jellyfin.sdk.api.client.extensions.post
+import org.jellyfin.sdk.api.client.util.ApiSerializer
 import org.jellyfin.sdk.api.client.extensions.imageApi
 import org.jellyfin.sdk.api.client.extensions.userApi
 import org.jellyfin.sdk.model.DeviceInfo
+import org.jellyfin.sdk.model.api.AuthenticateUserByName
 import org.jellyfin.sdk.model.api.AuthenticationResult
+import org.jellyfin.sdk.model.api.QuickConnectDto
 import org.jellyfin.sdk.model.api.ImageType
 import org.jellyfin.sdk.model.api.UserDto
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonPrimitive
 import timber.log.Timber
 import java.util.*
 
@@ -72,8 +78,10 @@ class AuthenticationRepositoryImpl(
 	private fun authenticateCredential(server: Server, username: String, password: String) = flow {
 		val api = jellyfin.createApi(server.address, deviceInfo = defaultDeviceInfo.forUser(username))
 		val result = try {
-			val response = api.userApi.authenticateUserByName(username, password)
-			response.content
+			api.authenticateCompat(
+				"/Users/AuthenticateByName",
+				AuthenticateUserByName(username = username, pw = password),
+			)
 		} catch (err: TimeoutException) {
 			Timber.e(err, "Failed to connect to server trying to sign in $username")
 			emit(ServerUnavailableState)
@@ -90,8 +98,10 @@ class AuthenticationRepositoryImpl(
 	private fun authenticateQuickConnect(server: Server, secret: String) = flow {
 		val api = jellyfin.createApi(server.address, deviceInfo = defaultDeviceInfo)
 		val result = try {
-			val response = api.userApi.authenticateWithQuickConnect(secret)
-			response.content
+			api.authenticateCompat(
+				"/Users/AuthenticateWithQuickConnect",
+				QuickConnectDto(secret = secret),
+			)
 		} catch (err: ApiClientException) {
 			Timber.e(err, "Unable to sign in with Quick Connect secret")
 			emit(RequireSignInState)
@@ -186,4 +196,25 @@ class AuthenticationRepositoryImpl(
 			maxHeight = MAX_PRIMARY_IMAGE_HEIGHT
 		)
 	}
+}
+
+/**
+ * Authenticate and read only the parts of the response the app needs.
+ *
+ * Jellyfin 10.9+ removed fields from the session info inside AuthenticationResult
+ * (e.g. Capabilities.SupportsContentUploading / SupportsSync) that SDK 1.4.x models as required,
+ * so decoding the full AuthenticationResult throws and the login is reported as a bad password.
+ * The access token and user are all that is used, so decode just those.
+ */
+private suspend fun ApiClient.authenticateCompat(path: String, body: Any): AuthenticationResult {
+	val json = post<JsonObject>(path, requestBody = body).content
+	val user = json["User"]
+		?.takeUnless { it is JsonNull }
+		?.let { ApiSerializer.json.decodeFromJsonElement(UserDto.serializer(), it) }
+
+	return AuthenticationResult(
+		user = user,
+		accessToken = json["AccessToken"]?.jsonPrimitive?.contentOrNull,
+		serverId = json["ServerId"]?.jsonPrimitive?.contentOrNull,
+	)
 }
