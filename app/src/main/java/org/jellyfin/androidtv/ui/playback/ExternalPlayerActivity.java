@@ -132,6 +132,10 @@ public class ExternalPlayerActivity extends FragmentActivity {
     static final String API_VIMU_RESULT_POSITION = "position";
     static final int API_VIMU_RESULT_PLAYBACK_COMPLETED = 1;
     static final int API_VIMU_RESULT_PLAYBACK_INTERRUPTED = 0;
+    static final String API_VIMU_RESULT_ID = "net.gtvbox.videoplayer.result";
+
+    // https://mpv-android.github.io/mpv-android/intent.html
+    static final String API_MPV_RESULT_ID = "is.xyz.mpv.MPVActivity.result";
 
     // www.zidoo.tv
     static final int API_ZIDOO_REQUEST_CODE = 99;
@@ -259,6 +263,13 @@ public class ExternalPlayerActivity extends FragmentActivity {
             return;
         }
 
+        // Zidoo player told us the video played to the end -> continue with the next item
+        if (!isLiveTv && mZidooTask instanceof ZidooReportTask && ((ZidooReportTask) mZidooTask).mPlaybackCompleted) {
+            Timber.i("Detected playback completion for Zidoo player.");
+            playNext();
+            return;
+        }
+
         Long runtime = mZidooTask.mStreamInfo.getRunTimeTicks() != null ? mZidooTask.mStreamInfo.getRunTimeTicks() : mCurrentItem.getOriginalRunTimeTicks();
         Integer pos = mZidooTask.mPlayPos;
         if (runtime == null || runtime <= 0 || pos == null || pos <= 0) {
@@ -293,7 +304,7 @@ public class ExternalPlayerActivity extends FragmentActivity {
         // check for playback completion in API's
         if (pos < 0 && data != null) {
             if (Objects.equals(data.getAction(), API_MX_RESULT_ID)) {
-                if (resultCode == Activity.RESULT_OK && data.getStringExtra(API_MX_RESULT_END_BY).equals(API_MX_RESULT_END_BY_PLAYBACK_COMPLETION)) {
+                if (resultCode == Activity.RESULT_OK && API_MX_RESULT_END_BY_PLAYBACK_COMPLETION.equals(data.getStringExtra(API_MX_RESULT_END_BY))) {
                     pos = DURATION_10H_MS;
                     Timber.i("Detected playback completion for MX player.");
                 }
@@ -301,6 +312,17 @@ public class ExternalPlayerActivity extends FragmentActivity {
                 if (resultCode == Activity.RESULT_OK) {
                     pos = DURATION_10H_MS;
                     Timber.i("Detected playback completion for VLC player.");
+                }
+            } else if (Objects.equals(data.getAction(), API_VIMU_RESULT_ID)) {
+                if (resultCode == API_VIMU_RESULT_PLAYBACK_COMPLETED) {
+                    pos = DURATION_10H_MS;
+                    Timber.i("Detected playback completion for Vimu player.");
+                }
+            } else if (Objects.equals(data.getAction(), API_MPV_RESULT_ID)) {
+                // mpv only omits the position when the file played to the end
+                if (resultCode == Activity.RESULT_OK) {
+                    pos = DURATION_10H_MS;
+                    Timber.i("Detected playback completion for mpv player.");
                 }
             }
         }

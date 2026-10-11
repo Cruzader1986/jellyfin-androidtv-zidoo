@@ -531,6 +531,8 @@ class ZidooReportTask extends ZidooTask {
     public Pair<Integer, Integer> mFinishedAudioSubIdx;
     private boolean started;
     final public int mSeekPos;
+    // true when the Zidoo player reported that the video played to the end (end_by=playback_completion)
+    public boolean mPlaybackCompleted = false;
 
     public ZidooReportTask(@NonNull ZidooTask startupTask, int seekPos, int taskDelay) {
         super(startupTask.mActivity, startupTask.mPrefs, startupTask.mItem, startupTask.mStreamInfo, taskDelay);
@@ -604,10 +606,23 @@ class ZidooReportTask extends ZidooTask {
     }
 
     private void updateFromResult(@NonNull Intent data) {
-//        String end_by = data.getStringExtra("end_by");
+        String endBy = data.getStringExtra("end_by");
 //        String url = data.getStringExtra("url");
-//        int duration = data.getIntExtra("duration", -1);
+        int duration = data.getIntExtra("duration", -1);
         int position = data.getIntExtra("position", -1);
+        // The Zidoo player uses the MX Player result API: when a video plays to the end it sets
+        // end_by=playback_completion and often omits the position. The last polled position can be
+        // up to one report interval old, so report the full runtime to make the server mark it watched.
+        if ("playback_completion".equals(endBy)) {
+            mPlaybackCompleted = true;
+            Long runtimeTicks = mStreamInfo.getRunTimeTicks() != null ? mStreamInfo.getRunTimeTicks() : mItem.getRunTimeTicks();
+            if (duration > 0) {
+                position = duration;
+            } else if (runtimeTicks != null && runtimeTicks > 0) {
+                position = (int) (runtimeTicks / RUNTIME_TICKS_TO_MS);
+            }
+            Timber.i("ZidooReportTask detected playback completion, end position <%s>", getMillisecondsFormated(position));
+        }
         int audio_idx = data.getIntExtra("audio_idx", -1);
         int subtitle_idx = data.getIntExtra("subtitle_idx", -1);
         // update values from result
@@ -623,7 +638,7 @@ class ZidooReportTask extends ZidooTask {
     protected void finishTask(boolean isReset) {
         if (!mIsFinished) {
             super.finishTask(isReset);
-            if (mPlayMethod != PlayMethod.Transcode && mPlayPos != null && mPlayPos > 0) {
+            if ((mPlayMethod != PlayMethod.Transcode || mPlaybackCompleted) && mPlayPos != null && mPlayPos > 0) {
                 ReportingHelper.reportStopped(mItem, mStreamInfo, mPlayPos * RUNTIME_TICKS_TO_MS);
                 Timber.d("ZidooReportTask reportStopped Position: <%s>", getMillisecondsFormated(mPlayPos));
             } else {
