@@ -653,7 +653,13 @@ class ZidooReportTask extends ZidooTask {
                 if (setZidooSeekPosition(target)) {
                     Timber.i("ZidooReportTask skipped segment <%s> from <%s> to <%s>", segment, getMillisecondsFormated(mPlayPos), getMillisecondsFormated(target));
                     mPlayPos = target;
-                    final int message = "Outro".equals(segment.type) ? R.string.msg_segment_skipped_credits : R.string.msg_segment_skipped_intro;
+                    final int message;
+                    switch (segment.type) {
+                        case "Outro": message = R.string.msg_segment_skipped_credits; break;
+                        case "Recap": message = R.string.msg_segment_skipped_recap; break;
+                        case "Preview": message = R.string.msg_segment_skipped_preview; break;
+                        default: message = R.string.msg_segment_skipped_intro; break;
+                    }
                     mActivity.runOnUiThread(() -> Toast.makeText(mActivity.getApplicationContext(), message, Toast.LENGTH_SHORT).show());
                 } else {
                     Timber.w("ZidooReportTask failed to skip segment <%s>", segment);

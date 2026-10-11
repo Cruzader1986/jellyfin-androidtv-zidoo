@@ -35,6 +35,10 @@ class ApiBinder(
 
 		api.device = deviceInfo.legacy()
 		api.SetAuthenticationInfo(session.accessToken, session.userId.toString())
+		// Redirect obsolete /Users/{userId}/... routes to their replacements on Jellyfin 10.9+
+		LegacyRouteRewriter.updateServerVersion(server.version)
+		Timber.i("Legacy route rewrite for server version ${server.version}: ${LegacyRouteRewriter.isEnabled()}")
+
 		api.EnableAutomaticNetworking(ServerInfo().apply {
 			id = session.serverId.toString()
 			name = server.name

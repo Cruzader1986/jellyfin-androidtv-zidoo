@@ -34,6 +34,7 @@ object MediaSegmentFetcher : KoinComponent {
 		SegmentSkipBehavior.OFF -> emptyList()
 		SegmentSkipBehavior.INTRO -> listOf("Intro")
 		SegmentSkipBehavior.INTRO_AND_CREDITS -> listOf("Intro", "Outro")
+		SegmentSkipBehavior.ALL -> listOf("Intro", "Outro", "Recap", "Preview")
 	}
 
 	/**

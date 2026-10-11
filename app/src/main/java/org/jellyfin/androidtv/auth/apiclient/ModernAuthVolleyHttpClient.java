@@ -41,7 +41,8 @@ public class ModernAuthVolleyHttpClient extends VolleyHttpClient {
 			method = Request.Method.DELETE;
 		}
 
-		final String url = request.getUrl();
+		// Use the current (Jellyfin 10.9+) routes instead of the obsolete /Users/{userId}/... ones when supported
+		final String url = LegacyRouteRewriter.rewrite(request.getUrl());
 
 		StringRequest req = new ModernAuthStringRequest(method,
 				url,

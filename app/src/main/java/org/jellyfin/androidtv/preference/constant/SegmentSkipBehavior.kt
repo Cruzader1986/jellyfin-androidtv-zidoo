@@ -15,4 +15,7 @@ enum class SegmentSkipBehavior {
 
 	@EnumDisplayOptions(R.string.lbl_segment_skip_intro_credits)
 	INTRO_AND_CREDITS,
+
+	@EnumDisplayOptions(R.string.lbl_segment_skip_all)
+	ALL,
 }

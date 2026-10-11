@@ -85,6 +85,7 @@ public class EnhancedBrowseFragment extends Fragment implements RowLoader {
     public static final int FAVSONGS = 9;
     protected static final int SCHEDULE = 10;
     protected static final int SERIES = 11;
+    protected static final int SHUFFLE_SONGS = 13;
     protected BaseItemDto mFolder;
     protected String itemTypeString;
     protected boolean showViews = true;
@@ -280,6 +281,8 @@ public class EnhancedBrowseFragment extends Fragment implements RowLoader {
                 gridRowAdapter.add(new GridButton(ALBUMS, getString(R.string.lbl_albums), R.drawable.tile_audio));
                 gridRowAdapter.add(new GridButton(ARTISTS, getString(R.string.lbl_artists), R.drawable.tile_artists));
                 gridRowAdapter.add(new GridButton(GENRES, getString(R.string.lbl_genres), R.drawable.tile_genres));
+                // ported from jellyfin-androidtv #5694
+                gridRowAdapter.add(new GridButton(SHUFFLE_SONGS, getString(R.string.lbl_shuffle_all), R.drawable.tile_audio));
                 break;
 
             default:
@@ -388,6 +391,22 @@ public class EnhancedBrowseFragment extends Fragment implements RowLoader {
                         genreIntent.putExtra(GroupedItemsActivity.EXTRA_INCLUDE_TYPE, itemTypeString);
 
                         requireActivity().startActivity(genreIntent);
+                        break;
+
+                    case SHUFFLE_SONGS:
+                        org.jellyfin.androidtv.data.querying.StdItemQuery shuffleQuery = new org.jellyfin.androidtv.data.querying.StdItemQuery();
+                        shuffleQuery.setParentId(mFolder.getId());
+                        shuffleQuery.setIncludeItemTypes(new String[]{"Audio"});
+                        shuffleQuery.setRecursive(true);
+                        shuffleQuery.setSortBy(new String[]{org.jellyfin.sdk.model.constant.ItemSortBy.Random});
+                        shuffleQuery.setLimit(100);
+                        KoinJavaComponent.<org.jellyfin.apiclient.interaction.ApiClient>get(org.jellyfin.apiclient.interaction.ApiClient.class).GetItemsAsync(shuffleQuery, new org.jellyfin.apiclient.interaction.Response<org.jellyfin.apiclient.model.querying.ItemsResult>() {
+                            @Override
+                            public void onResponse(org.jellyfin.apiclient.model.querying.ItemsResult response) {
+                                if (!isAdded() || response == null || response.getItems() == null || response.getItems().length == 0) return;
+                                mediaManager.getValue().playNow(requireContext(), java.util.Arrays.asList(response.getItems()), false);
+                            }
+                        });
                         break;
 
                     case SUGGESTED:
