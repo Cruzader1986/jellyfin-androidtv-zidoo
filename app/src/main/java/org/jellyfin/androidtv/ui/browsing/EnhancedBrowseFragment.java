@@ -224,10 +224,11 @@ public class EnhancedBrowseFragment extends Fragment implements RowLoader {
         mRowsAdapter = new ArrayObjectAdapter(rowPS);
         mCardPresenter = new CardPresenter();
         mCardPresenter.setAllowBackdropFallback(true);
-        boolean seriesThumbEnabled = KoinJavaComponent.<UserSettingPreferences>get(UserSettingPreferences.class).get(UserSettingPreferences.Companion.getSeriesThumbnailsEnabled());
-        mCardPresenter.setAllowParentFallback(seriesThumbEnabled);
-        mCardPresenter.setPreferSeasonForEpisodes(seriesThumbEnabled);
-        mCardPresenter.setPreferSeriesForEpisodes(seriesThumbEnabled);
+        // "Prefer series thumbnails" is a home screen setting. When browsing (e.g. a season) episodes must show
+        // their own image; series/season art is only a fallback when an episode has none (Andy2244#9).
+        mCardPresenter.setAllowParentFallback(true);
+        mCardPresenter.setPreferSeasonForEpisodes(false);
+        mCardPresenter.setPreferSeriesForEpisodes(false);
 
         var latestCardPresenter = new CardPresenter(mCardPresenter);
         latestCardPresenter.mImageType = ImageType.POSTER;

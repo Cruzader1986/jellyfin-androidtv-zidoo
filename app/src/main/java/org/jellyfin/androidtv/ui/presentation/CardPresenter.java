@@ -444,7 +444,18 @@ public class CardPresenter extends Presenter {
         BaseItemDto baseItem = rowItem.getBaseItem();
         switch (rowItem.getItemType()) {
             case BaseItem, LiveTvProgram, LiveTvRecording -> {
-                imageUrl = imageHelper.getValue().getImageUrl(ModelCompat.asSdk(baseItem), ModelCompat.asSdk(outImageType), true, maxHeight, null,
+                // Episodes rarely have a Thumb image; their still is the Primary image (16:9). Use the episode's own
+                // images before any series/season fallback, unless series/season images are explicitly preferred.
+                if (baseItem.getBaseItemType() == BaseItemType.Episode && imageType == ImageType.THUMB
+                        && !mPreferSeriesForEpisodes && !mPreferSeasonForEpisodes) {
+                    org.jellyfin.sdk.model.api.BaseItemDto episode = ModelCompat.asSdk(baseItem);
+                    imageUrl = imageHelper.getValue().getImageUrl(episode, org.jellyfin.sdk.model.api.ImageType.THUMB, true, maxHeight, null, false, false, false);
+                    if (imageUrl == null) {
+                        imageUrl = imageHelper.getValue().getImageUrl(episode, org.jellyfin.sdk.model.api.ImageType.PRIMARY, true, maxHeight, null, false, false, false);
+                        if (imageUrl != null) outImageType = org.jellyfin.apiclient.model.entities.ImageType.Primary;
+                    }
+                }
+                if (imageUrl == null) imageUrl = imageHelper.getValue().getImageUrl(ModelCompat.asSdk(baseItem), ModelCompat.asSdk(outImageType), true, maxHeight, null,
                         mAllowParentFallback, mPreferSeriesForEpisodes, mPreferSeasonForEpisodes);
                 // only for none Poster
                 if (imageUrl == null && mAllowBackdropFallback && imageType != ImageType.POSTER) {
