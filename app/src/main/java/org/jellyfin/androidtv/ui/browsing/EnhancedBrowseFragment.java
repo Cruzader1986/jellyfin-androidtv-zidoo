@@ -16,6 +16,7 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentActivity;
 import androidx.leanback.app.RowsSupportFragment;
+import androidx.leanback.widget.ListRowPresenter;
 import androidx.leanback.widget.ArrayObjectAdapter;
 import androidx.leanback.widget.ClassPresenterSelector;
 import androidx.leanback.widget.HeaderItem;
@@ -220,6 +221,33 @@ public class EnhancedBrowseFragment extends Fragment implements RowLoader {
         }
     }
 
+    private void focusNextEpisode(final ItemRowAdapter adapter) {
+        adapter.setRetrieveFinishedListener(new EmptyResponse() {
+            private boolean done = false;
+
+            @Override
+            public void onResponse() {
+                if (done || mRowsFragment == null || !isAdded()) return;
+                done = true;
+
+                int target = -1;
+                for (int i = 0; i < adapter.size(); i++) {
+                    Object entry = adapter.get(i);
+                    if (!(entry instanceof BaseRowItem)) continue;
+                    BaseItemDto episode = ((BaseRowItem) entry).getBaseItem();
+                    if (episode != null && episode.getUserData() != null && !episode.getUserData().getPlayed()) {
+                        target = i;
+                        break;
+                    }
+                }
+
+                if (target > 0) {
+                    mRowsFragment.setSelectedPosition(0, false, new ListRowPresenter.SelectItemViewHolderTask(target));
+                }
+            }
+        });
+    }
+
     public void loadRows(List<BrowseRowDef> rows) {
         ClassPresenterSelector rowPS = LayoutHelper.INSTANCE.buildDefaultRowPresenterSelector(null, 0);
         mRowsAdapter = new ArrayObjectAdapter(rowPS);
@@ -257,6 +285,10 @@ public class EnhancedBrowseFragment extends Fragment implements RowLoader {
             }
             mRowsAdapter.add(row);
             rowAdapter.setRow(row);
+            // Season page: start on the episode you're up to instead of episode 1
+            if (mRowsAdapter.size() == 1 && mFolder != null && mFolder.getBaseItemType() == BaseItemType.Season) {
+                focusNextEpisode(rowAdapter);
+            }
             rowAdapter.Retrieve();
         }
 
