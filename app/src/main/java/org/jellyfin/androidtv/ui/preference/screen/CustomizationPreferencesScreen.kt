@@ -6,6 +6,7 @@ import org.jellyfin.androidtv.preference.UserPreferences
 import org.jellyfin.androidtv.preference.constant.AppTheme
 import org.jellyfin.androidtv.preference.constant.ClockBehavior
 import org.jellyfin.androidtv.preference.constant.RatingType
+import org.jellyfin.androidtv.preference.constant.TextScale
 import org.jellyfin.androidtv.preference.constant.WatchedIndicatorBehavior
 import org.jellyfin.androidtv.ui.preference.dsl.*
 import org.koin.android.ext.android.inject
@@ -22,6 +23,11 @@ class CustomizationPreferencesScreen : OptionsFragment() {
 			enum<AppTheme> {
 				setTitle(R.string.pref_app_theme)
 				bind(userPreferences, UserPreferences.appTheme)
+			}
+
+			enum<TextScale> {
+				setTitle(R.string.pref_text_scale)
+				bind(userPreferences, UserPreferences.textScale)
 			}
 
 			enum<ClockBehavior> {

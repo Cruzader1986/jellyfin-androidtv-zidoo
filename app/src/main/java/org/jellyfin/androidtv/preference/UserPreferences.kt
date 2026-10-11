@@ -34,6 +34,11 @@ class UserPreferences(context: Context) : SharedPreferenceStore(
 		var appTheme = enumPreference("app_theme", AppTheme.DARK)
 
 		/**
+		 * App wide text size
+		 */
+		var textScale = enumPreference("pref_text_scale", TextScale.NORMAL)
+
+		/**
 		 * Enable background images while browsing
 		 */
 		var backdropType = enumPreference("pref_backdrop_type", BackgroundType.NORMAL)
