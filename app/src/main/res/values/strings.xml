@@ -622,4 +622,13 @@
     <string name="update_check_on_startup">Check for updates on startup</string>
     <string name="update_check_on_startup_enabled">A prompt is shown when a new version is released</string>
     <string name="update_check_on_startup_disabled">Only when checking manually</string>
+    <!-- Details: more options -->
+    <string name="media_info">Media info</string>
+    <string name="media_info_unavailable">No media info available</string>
+    <string name="lbl_remove_from_resume">Remove from Continue Watching</string>
+    <string name="lbl_mark_season_watched">Mark season watched</string>
+    <string name="lbl_mark_season_unwatched">Mark season unwatched</string>
+    <string name="msg_removed_from_resume">Removed from Continue Watching</string>
+    <string name="msg_season_marked_watched">Season marked as watched</string>
+    <string name="msg_season_marked_unwatched">Season marked as unwatched</string>
 </resources>

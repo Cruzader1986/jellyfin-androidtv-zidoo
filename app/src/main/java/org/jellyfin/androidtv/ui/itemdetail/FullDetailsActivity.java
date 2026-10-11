@@ -1360,6 +1360,8 @@ public class FullDetailsActivity extends BaseActivity implements RecordingIndica
                     more.getMenu().getItem(5).setVisible(true);
                 }
 
+                more.getMenu().findItem(R.id.mediaInfo).setVisible(hasMediaInfo());
+
                 more.show();
             }
         });
@@ -1424,7 +1426,16 @@ public class FullDetailsActivity extends BaseActivity implements RecordingIndica
                 collapsedOptions++;
             }
         }
-        moreButton.setVisibility(collapsedOptions > 0 ? View.VISIBLE : View.GONE);
+        moreButton.setVisibility(collapsedOptions > 0 || hasExtraMoreOptions() ? View.VISIBLE : View.GONE);
+    }
+
+    private boolean hasMediaInfo() {
+        return mBaseItem != null && mBaseItem.getMediaSources() != null && mBaseItem.getMediaSources().size() > 0 && mProgramInfo == null;
+    }
+
+    // options that only live in the "more" menu, so the button has to be shown for them
+    private boolean hasExtraMoreOptions() {
+        return hasMediaInfo();
     }
 
     PopupMenu.OnMenuItemClickListener moreMenuListener = new PopupMenu.OnMenuItemClickListener() {
@@ -1437,6 +1448,10 @@ public class FullDetailsActivity extends BaseActivity implements RecordingIndica
                     return true;
                 case R.id.playTrailers:
                     playTrailers();
+                    return true;
+                case R.id.mediaInfo:
+                    MediaInfoDialog.show(FullDetailsActivity.this, mBaseItem.getId(), selectedVersionPopupIndex);
+                    return true;
                 case R.id.gotoSeries:
                     gotoSeries();
                     return true;
