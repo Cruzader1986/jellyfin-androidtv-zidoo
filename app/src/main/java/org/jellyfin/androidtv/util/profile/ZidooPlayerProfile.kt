@@ -235,7 +235,11 @@ class ZidooPlayerProfile(
 			subtitleProfile(Codec.Subtitle.SUB, SubtitleDeliveryMethod.Embed),
 			subtitleProfile(Codec.Subtitle.IDX, SubtitleDeliveryMethod.Embed),
 			subtitleProfile(Codec.Subtitle.SMI, SubtitleDeliveryMethod.Embed),
+			// side-car subtitle files, passed to the Zidoo player as urls (see ExternalPlayerActivity.addZidooSubtitleExtras)
 			subtitleProfile(Codec.Subtitle.SRT, SubtitleDeliveryMethod.External),
+			subtitleProfile(Codec.Subtitle.SUBRIP, SubtitleDeliveryMethod.External),
+			subtitleProfile(Codec.Subtitle.ASS, SubtitleDeliveryMethod.External),
+			subtitleProfile(Codec.Subtitle.SSA, SubtitleDeliveryMethod.External),
 		)
 	}
 }

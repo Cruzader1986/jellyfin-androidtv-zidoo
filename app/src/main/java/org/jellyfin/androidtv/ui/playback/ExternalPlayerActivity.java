@@ -29,6 +29,7 @@ import org.jellyfin.androidtv.R;
 import org.jellyfin.androidtv.auth.repository.UserRepository;
 import org.jellyfin.androidtv.data.compat.PlaybackException;
 import org.jellyfin.androidtv.data.compat.StreamInfo;
+import org.jellyfin.androidtv.data.compat.SubtitleStreamInfo;
 import org.jellyfin.androidtv.data.compat.VideoOptions;
 import org.jellyfin.androidtv.data.service.BackgroundService;
 import org.jellyfin.androidtv.preference.LibraryPreferences;
@@ -51,6 +52,7 @@ import org.jellyfin.apiclient.interaction.ApiClient;
 import org.jellyfin.apiclient.interaction.Response;
 import org.jellyfin.apiclient.model.dlna.DlnaProfileType;
 import org.jellyfin.apiclient.model.dlna.EncodingContext;
+import org.jellyfin.apiclient.model.dlna.SubtitleDeliveryMethod;
 import org.jellyfin.apiclient.model.dto.BaseItemDto;
 import org.jellyfin.apiclient.model.dto.BaseItemType;
 import org.jellyfin.apiclient.model.dto.MediaSourceInfo;
@@ -60,6 +62,7 @@ import org.jellyfin.sdk.model.api.ImageFormat;
 import org.jellyfin.sdk.model.api.ImageType;
 import org.koin.java.KoinJavaComponent;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -117,6 +120,10 @@ public class ExternalPlayerActivity extends FragmentActivity {
     static final String API_MX_RESULT_END_BY = "end_by";
     static final String API_MX_RESULT_END_BY_USER = "user";
     static final String API_MX_RESULT_END_BY_PLAYBACK_COMPLETION = "playback_completion";
+    static final String API_MX_SUBS = "subs";
+    static final String API_MX_SUBS_NAME = "subs.name";
+    static final String API_MX_SUBS_FILENAME = "subs.filename";
+    static final String API_MX_SUBS_ENABLE = "subs.enable";
 
     // https://wiki.videolan.org/Android_Player_Intents/
     static final String API_VLC_TITLE = "title";
@@ -928,6 +935,84 @@ public class ExternalPlayerActivity extends FragmentActivity {
 //        });
     }
 
+    /**
+     * Subtitle support for the Zidoo player (Andy2244/jellyfin-androidtv-zidoo#10):
+     * - Online subtitle search ("Download subtitle") uses the file name, which is just "stream" for http playback.
+     *   Pass the real title via Zidoo's subtitle search extra and the original file name via the MX "filename" extra.
+     * - External subtitle files (side-car .srt/.ass next to the movie) are invisible to the player when it plays an
+     *   http stream. Pass their Jellyfin delivery urls using the MX Player intent API ("subs"), which the Zidoo
+     *   player's intent API mirrors (title/position/return_result/end_by).
+     */
+    private void addZidooSubtitleExtras(@NonNull Intent intent, @NonNull Uri pathUri) {
+        try {
+            String searchTitle = getSubtitleSearchTitle();
+            if (isNonEmptyTrim(searchTitle)) {
+                intent.putExtra(API_ZIDOO_TITLE_SUB_SEARCH, searchTitle);
+            }
+            String fileName = getOriginalFileName();
+            if (isNonEmptyTrim(fileName)) {
+                intent.putExtra(API_MX_FILENAME, fileName);
+            }
+
+            // Direct path (smb/nfs): the player sees the side-car files itself
+            String scheme = pathUri.getScheme();
+            if (scheme == null || !scheme.toLowerCase(Locale.ROOT).startsWith("http")) return;
+            // Transcoding embeds/burns in the selected subtitle
+            if (mCurrentStreamInfo == null || mCurrentStreamInfo.getPlayMethod() == PlayMethod.Transcode) return;
+            if (mCurrentStreamInfo.getDeviceProfile() == null || mCurrentStreamInfo.getMediaSource() == null) return;
+
+            ArrayList<SubtitleStreamInfo> subtitles = mCurrentStreamInfo.GetSubtitleProfiles(false, apiClient.getValue().getApiUrl(), apiClient.getValue().getAccessToken());
+            List<Uri> uris = new ArrayList<>();
+            List<String> names = new ArrayList<>();
+            List<String> fileNames = new ArrayList<>();
+            String baseName = fileName != null && fileName.contains(".") ? fileName.substring(0, fileName.lastIndexOf('.')) : (fileName != null ? fileName : "subtitle");
+            for (SubtitleStreamInfo subtitle : subtitles) {
+                if (subtitle.getDeliveryMethod() != SubtitleDeliveryMethod.External) continue;
+                String url = subtitle.getUrl();
+                if (!isNonEmptyTrim(url) || !url.toLowerCase(Locale.ROOT).startsWith("http")) continue;
+                uris.add(Uri.parse(url));
+                String name = isNonEmptyTrim(subtitle.getDisplayTitle()) ? subtitle.getDisplayTitle() : subtitle.getName();
+                names.add(name);
+                String lang = isNonEmptyTrim(subtitle.getName()) && !"Unknown".equals(subtitle.getName()) ? "." + subtitle.getName() : "";
+                fileNames.add(baseName + lang + "." + subtitle.getIndex() + "." + subtitle.getFormat());
+            }
+            if (uris.isEmpty()) return;
+
+            intent.putExtra(API_MX_SUBS, uris.toArray(new Uri[0]));
+            intent.putExtra(API_MX_SUBS_NAME, names.toArray(new String[0]));
+            intent.putExtra(API_MX_SUBS_FILENAME, fileNames.toArray(new String[0]));
+            Timber.i("Passing <%d> external subtitles to Zidoo player: %s", uris.size(), names);
+        } catch (Exception e) {
+            Timber.w(e, "Unable to add subtitle extras for Zidoo player");
+        }
+    }
+
+    @Nullable
+    private String getSubtitleSearchTitle() {
+        if (mCurrentItem == null) return null;
+        if (mCurrentItem.getBaseItemType() == BaseItemType.Episode && isNonEmptyTrim(mCurrentItem.getSeriesName())) {
+            String title = mCurrentItem.getSeriesName();
+            if (mCurrentItem.getParentIndexNumber() != null && mCurrentItem.getIndexNumber() != null) {
+                title += String.format(Locale.US, " S%02dE%02d", mCurrentItem.getParentIndexNumber(), mCurrentItem.getIndexNumber());
+            }
+            return title;
+        }
+        String title = mCurrentItem.getName();
+        if (isNonEmptyTrim(title) && mCurrentItem.getProductionYear() != null && mCurrentItem.getProductionYear() > 0) {
+            title += " " + mCurrentItem.getProductionYear();
+        }
+        return title;
+    }
+
+    @Nullable
+    private String getOriginalFileName() {
+        String path = mCurrentMediaSource != null && isNonEmptyTrim(mCurrentMediaSource.getPath()) ? mCurrentMediaSource.getPath() : mCurrentItem.getPath();
+        if (!isNonEmptyTrim(path)) return null;
+        path = path.replace('\\', '/');
+        String name = path.substring(path.lastIndexOf('/') + 1);
+        return isNonEmptyTrim(name) ? name : null;
+    }
+
     private void startExternalZidooMovieActivity(@NonNull Uri pathUri) {
         Intent zidooIntent = new Intent(Intent.ACTION_VIEW);
 //        zidooIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK);
@@ -970,6 +1055,7 @@ public class ExternalPlayerActivity extends FragmentActivity {
             }
         }
         zidooIntent.putExtra(API_ZIDOO_RETURN_RESULT, true);
+        addZidooSubtitleExtras(zidooIntent, pathUri);
 
         String container = mCurrentStreamInfo.getContainer();
         zidooIntent.setDataAndType(pathUri, "video/" + container);
