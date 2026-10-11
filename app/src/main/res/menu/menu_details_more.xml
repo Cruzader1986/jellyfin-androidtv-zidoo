@@ -21,4 +21,13 @@
     <item
         android:id="@+id/mediaInfo"
         android:title="@string/media_info" />
+    <item
+        android:id="@+id/removeResume"
+        android:title="@string/lbl_remove_from_resume" />
+    <item
+        android:id="@+id/markSeasonWatched"
+        android:title="@string/lbl_mark_season_watched" />
+    <item
+        android:id="@+id/markSeasonUnwatched"
+        android:title="@string/lbl_mark_season_unwatched" />
 </menu>

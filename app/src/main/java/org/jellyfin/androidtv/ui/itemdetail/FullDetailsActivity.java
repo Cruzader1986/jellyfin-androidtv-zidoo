@@ -1361,6 +1361,9 @@ public class FullDetailsActivity extends BaseActivity implements RecordingIndica
                 }
 
                 more.getMenu().findItem(R.id.mediaInfo).setVisible(hasMediaInfo());
+                more.getMenu().findItem(R.id.removeResume).setVisible(canRemoveFromResume());
+                more.getMenu().findItem(R.id.markSeasonWatched).setVisible(hasSeason());
+                more.getMenu().findItem(R.id.markSeasonUnwatched).setVisible(hasSeason());
 
                 more.show();
             }
@@ -1435,7 +1438,61 @@ public class FullDetailsActivity extends BaseActivity implements RecordingIndica
 
     // options that only live in the "more" menu, so the button has to be shown for them
     private boolean hasExtraMoreOptions() {
-        return hasMediaInfo();
+        return hasMediaInfo() || canRemoveFromResume() || hasSeason();
+    }
+
+    private boolean canRemoveFromResume() {
+        return mBaseItem != null && !mBaseItem.getIsFolderItem() && mBaseItem.getUserData() != null
+                && mBaseItem.getUserData().getPlaybackPositionTicks() > 0;
+    }
+
+    private boolean hasSeason() {
+        return mBaseItem != null && mBaseItem.getBaseItemType() == BaseItemType.Episode && mBaseItem.getSeasonId() != null;
+    }
+
+    private String currentUserId() {
+        return KoinJavaComponent.<UserRepository>get(UserRepository.class).getCurrentUser().getValue().getId().toString();
+    }
+
+    // Jellyfin has no "hide" for resume items; resetting the position removes it from the row.
+    // Marking played/unplayed both reset the position, so keep the current played state.
+    private void removeFromResume() {
+        final boolean played = mBaseItem.getUserData().getPlayed();
+        Response<UserItemDataDto> response = new Response<UserItemDataDto>() {
+            @Override
+            public void onResponse(UserItemDataDto data) {
+                if (data != null) mBaseItem.setUserData(data);
+                if (mResumeButton != null) mResumeButton.setVisibility(View.GONE);
+                dataRefreshService.getValue().setLastPlayback(System.currentTimeMillis());
+                Utils.showToast(mActivity, getString(R.string.msg_removed_from_resume));
+            }
+
+            @Override
+            public void onError(Exception exception) {
+                Utils.showToast(mActivity, exception.getLocalizedMessage());
+            }
+        };
+        if (played) apiClient.getValue().MarkPlayedAsync(mBaseItem.getId(), currentUserId(), null, response);
+        else apiClient.getValue().MarkUnplayedAsync(mBaseItem.getId(), currentUserId(), response);
+    }
+
+    private void markSeason(final boolean played) {
+        Response<UserItemDataDto> response = new Response<UserItemDataDto>() {
+            @Override
+            public void onResponse(UserItemDataDto data) {
+                if (mWatchedToggleButton != null) mWatchedToggleButton.setActivated(played);
+                if (played && mResumeButton != null) mResumeButton.setVisibility(View.GONE);
+                dataRefreshService.getValue().setLastPlayback(System.currentTimeMillis());
+                Utils.showToast(mActivity, getString(played ? R.string.msg_season_marked_watched : R.string.msg_season_marked_unwatched));
+            }
+
+            @Override
+            public void onError(Exception exception) {
+                Utils.showToast(mActivity, exception.getLocalizedMessage());
+            }
+        };
+        if (played) apiClient.getValue().MarkPlayedAsync(mBaseItem.getSeasonId(), currentUserId(), null, response);
+        else apiClient.getValue().MarkUnplayedAsync(mBaseItem.getSeasonId(), currentUserId(), response);
     }
 
     PopupMenu.OnMenuItemClickListener moreMenuListener = new PopupMenu.OnMenuItemClickListener() {
@@ -1448,6 +1505,15 @@ public class FullDetailsActivity extends BaseActivity implements RecordingIndica
                     return true;
                 case R.id.playTrailers:
                     playTrailers();
+                    return true;
+                case R.id.removeResume:
+                    removeFromResume();
+                    return true;
+                case R.id.markSeasonWatched:
+                    markSeason(true);
+                    return true;
+                case R.id.markSeasonUnwatched:
+                    markSeason(false);
                     return true;
                 case R.id.mediaInfo:
                     MediaInfoDialog.show(FullDetailsActivity.this, mBaseItem.getId(), selectedVersionPopupIndex);
