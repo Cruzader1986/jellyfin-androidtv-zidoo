@@ -140,11 +140,14 @@ fun org.jellyfin.sdk.model.api.BaseItemDto.getProgramSubText(context: Context) =
 		append(TimeUtils.getFriendlyDate(context, TimeUtils.getDate(startDate)), " ")
 
 	// Add the start and end time
+	// NOTE: java.text.DateFormat can't format a LocalDateTime ("Cannot format given Object as a Date", Andy2244#3)
 	val dateFormat = DateFormat.getTimeFormat(context)
-	append(context.getString(
+	val start = TimeUtils.getDate(startDate)
+	val end = TimeUtils.getDate(endDate)
+	if (start != null && end != null) append(context.getString(
 		R.string.lbl_time_range,
-		dateFormat.format(startDate),
-		dateFormat.format(endDate)
+		dateFormat.format(start),
+		dateFormat.format(end)
 	))
 }
 

@@ -341,7 +341,8 @@ class InfoRowView @JvmOverloads constructor(
             }
             BaseItemKind.PROGRAM, BaseItemKind.TV_CHANNEL -> {
                 item.takeIf { item.startDate.isNotNull() && item.endDate.isNotNull() }?.let {
-                    addText(DateFormat.getTimeFormat(context).format(it.startDate) + "-" + DateFormat.getTimeFormat(context).format(it.endDate))
+                    val timeFormat = DateFormat.getTimeFormat(context)
+                    addText(timeFormat.format(TimeUtils.getDate(it.startDate)) + "-" + timeFormat.format(TimeUtils.getDate(it.endDate)))
                 }
             }
             BaseItemKind.SERIES -> {
