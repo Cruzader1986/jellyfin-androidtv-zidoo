@@ -713,6 +713,7 @@ public class MediaManager {
     }
 
     private void playInternal(final BaseItemDto item, final int pos) {
+        org.jellyfin.androidtv.ui.itemdetail.ThemeMusicPlayer.stopNow();
         if (!ensureInitialized()) return;
 
         ensureAudioFocus();

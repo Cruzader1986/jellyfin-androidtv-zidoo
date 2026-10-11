@@ -20,6 +20,7 @@ class PlaybackOverlayActivity : BaseActivity() {
 
 	public override fun onCreate(savedInstanceState: Bundle?) {
 		super.onCreate(savedInstanceState)
+		org.jellyfin.androidtv.ui.itemdetail.ThemeMusicPlayer.stopNow()
 
 		// Workaround for Sony Bravia devices that show a "grey" background on HDR videos
 		// Note: Should NOT be applied to the decorView as this introduces artifacts

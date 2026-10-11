@@ -48,6 +48,12 @@ class CustomizationPreferencesScreen : OptionsFragment() {
 			}
 
 			checkbox {
+				setTitle(R.string.pref_theme_music)
+				setContent(R.string.pref_theme_music_description)
+				bind(userPreferences, UserPreferences.themeMusicEnabled)
+			}
+
+			checkbox {
 				setTitle(R.string.lbl_show_premieres)
 				setContent(R.string.desc_premieres)
 				bind(userPreferences, UserPreferences.premieresEnabled)

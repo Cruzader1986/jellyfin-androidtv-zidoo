@@ -64,6 +64,12 @@ class UserPreferences(context: Context) : SharedPreferenceStore(
 		 */
 		var skippedUpdateVersion = stringPreference("pref_skipped_update_version", "")
 
+/* Theme music */
+		/**
+		 * Play theme songs on details screens
+		 */
+		var themeMusicEnabled = booleanPreference("pref_theme_music", true)
+
 /* Playback - General*/
 		/**
 		 * Maximum bitrate in megabit for playback. A value of [MAX_BITRATE_AUTO] is used when

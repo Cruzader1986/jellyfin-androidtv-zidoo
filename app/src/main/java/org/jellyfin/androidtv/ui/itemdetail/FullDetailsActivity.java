@@ -303,6 +303,7 @@ public class FullDetailsActivity extends BaseActivity implements RecordingIndica
     protected void onPause() {
         super.onPause();
         stopClock();
+        ThemeMusicPlayer.stopSoon();
     }
 
     @Override
@@ -519,6 +520,7 @@ public class FullDetailsActivity extends BaseActivity implements RecordingIndica
                 mBaseItem.setRunTimeTicks(mProgramInfo.getRunTimeTicks());
             }
             createOverviewLayout(buildOverviewRow(item));
+            if (mProgramInfo == null) ThemeMusicPlayer.play(mBaseItem.getId());
         }
     }
 

@@ -186,6 +186,7 @@ public class ExternalPlayerActivity extends FragmentActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        org.jellyfin.androidtv.ui.itemdetail.ThemeMusicPlayer.stopNow();
 
         Timber.d("onCreate");
         backgroundService.getValue().attach(this);
