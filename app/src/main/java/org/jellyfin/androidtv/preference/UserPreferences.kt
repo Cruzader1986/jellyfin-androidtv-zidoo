@@ -54,6 +54,11 @@ class UserPreferences(context: Context) : SharedPreferenceStore(
 		var featuredBannerEnabled = booleanPreference("pref_featured_banner", true)
 
 		/**
+		 * Modern home: large preview of the focused title on top, compact artwork-only cards
+		 */
+		var modernHomeLayout = booleanPreference("pref_modern_home", true)
+
+		/**
 		 * Show premieres on home screen
 		 */
 		var premieresEnabled = booleanPreference("pref_enable_premieres", false)
@@ -317,6 +322,7 @@ class UserPreferences(context: Context) : SharedPreferenceStore(
 				this[backdropType].hashCode() +
 				this[backdropBlur].hashCode() +
 				this[featuredBannerEnabled].hashCode() +
+				this[modernHomeLayout].hashCode() +
 				this[premieresEnabled].hashCode() +
 				this[clockBehavior].hashCode() +
 				this[defaultRatingType].hashCode() +

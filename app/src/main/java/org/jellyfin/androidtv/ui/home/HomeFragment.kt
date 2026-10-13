@@ -9,6 +9,11 @@ import android.view.ViewGroup
 import androidx.core.view.ViewCompat
 import androidx.leanback.widget.ArrayObjectAdapter
 import androidx.leanback.widget.ClassPresenterSelector
+import androidx.leanback.widget.OnItemViewSelectedListener
+import androidx.leanback.widget.Presenter
+import androidx.leanback.widget.Row
+import androidx.leanback.widget.RowPresenter
+import org.jellyfin.androidtv.ui.itemhandling.BaseRowItem
 import androidx.leanback.widget.VerticalGridView
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
@@ -81,7 +86,8 @@ class HomeFragment : StdRowsFragment(), AudioEventListener {
 		(mRowsAdapter.presenterSelector as? ClassPresenterSelector)?.addClassPresenter(FeaturedRow::class.java, FeaturedRowPresenter())
 		adapter = mRowsAdapter
 
-		mCardPresenter = CardPresenter(userSettingPreferences[cardInfoType], null)
+		val modern = userPreferences[UserPreferences.modernHomeLayout]
+		mCardPresenter = CardPresenter(if (modern) CardInfoType.NO_INFO else userSettingPreferences[cardInfoType], null)
 			.setAllowBackdropFallback(true)
 			.setAllowParentFallback(userSettingPreferences[seriesThumbnailsEnabled])
 			.setPreferSeasonForEpisodes(userSettingPreferences[seriesThumbnailsEnabled])
@@ -105,7 +111,13 @@ class HomeFragment : StdRowsFragment(), AudioEventListener {
 //				itemAlignmentOffsetPercent = 0f
 				itemAlignmentOffset = -LayoutHelper.getToolbarHeight().div(2) + 1
 
-				setMarginTop(resources.getDimensionPixelSize(R.dimen.safe_area_vertical))
+				if (userPreferences[UserPreferences.modernHomeLayout]) {
+					// Rows start under the preview of the focused title
+					setMarginTop(HomePreviewView.height(requireContext()))
+					itemAlignmentOffset = 0
+				} else {
+					setMarginTop(resources.getDimensionPixelSize(R.dimen.safe_area_vertical))
+				}
 			}
 		}
 	}
@@ -145,6 +157,14 @@ class HomeFragment : StdRowsFragment(), AudioEventListener {
 	override fun setupEventListeners() {
 		super.setupEventListeners()
 
+		mSelectedListener.registerListener(object : OnItemViewSelectedListener {
+			override fun onItemSelected(itemViewHolder: Presenter.ViewHolder?, item: Any?, rowViewHolder: RowPresenter.ViewHolder?, row: Row?) {
+				val preview = (activity as? MainActivity)?.homePreview ?: return
+				val baseItem = (item as? BaseRowItem)?.baseItem
+				if (baseItem?.id != null) preview.show(baseItem.id, baseItem.name)
+				else preview.clear()
+			}
+		})
 		mClickedListener.registerListener(liveTVRow::onItemClicked)
 		mClickedListener.registerListener(notificationsRow::onItemClicked)
 	}
@@ -201,7 +221,7 @@ class HomeFragment : StdRowsFragment(), AudioEventListener {
 				// Add rows in order
 				notificationsRow.addToRowsAdapter(requireContext(), CardPresenter(CardInfoType.UNDER_MINI, null), mRowsAdapter)
 				nowPlaying.addToRowsAdapter(requireContext(), CardPresenter(userSettingPreferences[cardInfoType], null), mRowsAdapter)
-				if (userPreferences[UserPreferences.featuredBannerEnabled]) featuredRow.addToRowsAdapter(requireContext(), mCardPresenter, mRowsAdapter)
+				if (userPreferences[UserPreferences.featuredBannerEnabled] && !userPreferences[UserPreferences.modernHomeLayout]) featuredRow.addToRowsAdapter(requireContext(), mCardPresenter, mRowsAdapter)
 				rows.forEach {
 					it.addToRowsAdapter(requireContext(), mCardPresenter, mRowsAdapter)
 				}

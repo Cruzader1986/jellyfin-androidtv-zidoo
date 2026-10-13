@@ -48,9 +48,16 @@ class CustomizationPreferencesScreen : OptionsFragment() {
 			}
 
 			checkbox {
+				setTitle(R.string.pref_modern_home)
+				setContent(R.string.pref_modern_home_description)
+				bind(userPreferences, UserPreferences.modernHomeLayout)
+			}
+
+			checkbox {
 				setTitle(R.string.pref_featured_banner)
 				setContent(R.string.pref_featured_banner_description)
 				bind(userPreferences, UserPreferences.featuredBannerEnabled)
+				depends { !userPreferences[UserPreferences.modernHomeLayout] }
 			}
 
 			checkbox {

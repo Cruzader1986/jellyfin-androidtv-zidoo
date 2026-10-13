@@ -3,6 +3,9 @@ package org.jellyfin.androidtv.ui.browsing
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.view.ViewGroup
+import androidx.lifecycle.lifecycleScope
+import org.jellyfin.androidtv.ui.home.HomePreviewView
 import android.widget.Toast
 import androidx.fragment.app.add
 import androidx.fragment.app.replace
@@ -18,10 +21,24 @@ import org.koin.android.ext.android.get
 import org.koin.android.ext.android.inject
 
 class MainActivity : BaseActivity(R.layout.fragment_content_view) {
+	/** Preview of the focused card on the modern home screen (null with the classic layout). */
+	var homePreview: HomePreviewView? = null
+		private set
+
 	private val backgroundService: BackgroundService by inject<BackgroundService>()
 
 	override fun onCreate(savedInstanceState: Bundle?) {
 		super.onCreate(savedInstanceState)
+
+		if (get<UserPreferences>()[UserPreferences.modernHomeLayout]) {
+			homePreview = HomePreviewView(this).also {
+				it.attach(lifecycleScope)
+				findViewById<ViewGroup>(R.id.content_view).addView(it, 0, ViewGroup.LayoutParams(
+					ViewGroup.LayoutParams.MATCH_PARENT,
+					HomePreviewView.height(this),
+				))
+			}
+		}
 
 		supportFragmentManager
 			.beginTransaction()
