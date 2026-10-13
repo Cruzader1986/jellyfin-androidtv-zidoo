@@ -23,9 +23,10 @@ class HomeFragmentBrowseRowDefRow(
 	override fun addToRowsAdapter(context: Context, presenter: CardPresenter, rowsAdapter: ArrayObjectAdapter) {
 
 		var presenterX = presenter
-		if (cardInfoType != presenter.mInfoType || cardImageType != presenter.mImageType)
+		val infoType = if (presenter.mForceInfoType) presenter.mInfoType else cardInfoType
+		if (infoType != presenter.mInfoType || cardImageType != presenter.mImageType)
 			presenterX = CardPresenter(presenter).apply {
-				mInfoType = cardInfoType
+				mInfoType = infoType
 				mImageType = cardImageType
 			}
 

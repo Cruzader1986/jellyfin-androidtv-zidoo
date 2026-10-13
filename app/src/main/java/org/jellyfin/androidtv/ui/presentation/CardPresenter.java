@@ -90,6 +90,9 @@ public class CardPresenter extends Presenter {
 
     private final Lazy<ImageHelper> imageHelper = inject(ImageHelper.class);
 
+    /** When set, rows built from this presenter keep its info type (modern home: artwork only). */
+    public boolean mForceInfoType = false;
+
     public CardPresenter() {
         this(CardInfoType.UNDER_FULL, DEFAULT_CARD_HEIGHT);
     }
@@ -117,6 +120,7 @@ public class CardPresenter extends Presenter {
         mRowItemTypeToImageMap = presenter.mRowItemTypeToImageMap != DEFAULT_ROW_TYPE_TO_IMAGE_MAP ? new HashMap<>(presenter.mRowItemTypeToImageMap) : DEFAULT_ROW_TYPE_TO_IMAGE_MAP;
         mBaseItemTypeToImageMap = presenter.mBaseItemTypeToImageMap != DEFAULT_BASE_TYPE_TO_IMAGE_MAP ? new HashMap<>(presenter.mBaseItemTypeToImageMap) : DEFAULT_BASE_TYPE_TO_IMAGE_MAP;
         mInfoType = presenter.mInfoType;
+        mForceInfoType = presenter.mForceInfoType;
         mAllowParentFallback = presenter.mAllowParentFallback;
         mAllowBackdropFallback = presenter.mAllowBackdropFallback;
         mPreferSeriesForEpisodes = presenter.mPreferSeriesForEpisodes;

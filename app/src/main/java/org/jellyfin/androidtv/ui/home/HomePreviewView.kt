@@ -51,7 +51,7 @@ class HomePreviewView(context: Context) : FrameLayout(context), KoinComponent {
 		adjustViewBounds = true
 	}
 	private val title = TextView(context).apply {
-		textSize = 40f
+		textSize = 34f
 		setTypeface(Typeface.create("sans-serif", Typeface.BOLD))
 		setTextColor(Color.WHITE)
 		maxLines = 2
@@ -66,15 +66,15 @@ class HomePreviewView(context: Context) : FrameLayout(context), KoinComponent {
 		ellipsize = TextUtils.TruncateAt.END
 	}
 	private val meta = TextView(context).apply {
-		textSize = 16f
+		textSize = 15f
 		setTextColor(Color.rgb(201, 208, 220))
 		maxLines = 1
 	}
 	private val chips = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }
 	private val overview = TextView(context).apply {
-		textSize = 16f
+		textSize = 15f
 		setTextColor(Color.rgb(215, 220, 229))
-		maxLines = 3
+		maxLines = 2
 		ellipsize = TextUtils.TruncateAt.END
 		setLineSpacing(0f, 1.2f)
 	}
@@ -119,8 +119,8 @@ class HomePreviewView(context: Context) : FrameLayout(context), KoinComponent {
 		val column = LinearLayout(context).apply {
 			orientation = LinearLayout.VERTICAL
 			gravity = Gravity.BOTTOM
-			setPadding(dp(64), LayoutHelper.getToolbarHeight(), 0, dp(16))
-			addView(logo, LinearLayout.LayoutParams(dp(360), dp(110)).apply { bottomMargin = dp(10) })
+			setPadding(HomeSideRail.COLLAPSED_WIDTH_DP.let { dp(it) } + dp(48), LayoutHelper.getToolbarHeight(), 0, dp(44))
+			addView(logo, LinearLayout.LayoutParams(dp(300), dp(90)).apply { bottomMargin = dp(12) })
 			addView(title, LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT))
 			addView(subtitle, LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { bottomMargin = dp(8) })
 			addView(meta, LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { bottomMargin = dp(10) })
@@ -236,11 +236,11 @@ class HomePreviewView(context: Context) : FrameLayout(context), KoinComponent {
 	}
 
 	private fun logoUrl(id: UUID, tag: String) =
-		api.imageApi.getItemImageUrl(itemId = id, imageType = ImageType.LOGO, tag = tag, maxHeight = dp(110) * 2)
+		api.imageApi.getItemImageUrl(itemId = id, imageType = ImageType.LOGO, tag = tag, maxHeight = dp(90) * 2)
 
 	private fun chip(label: String) = TextView(context).apply {
 		text = label
-		textSize = 13f
+		textSize = 12f
 		setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD))
 		setTextColor(Color.WHITE)
 		letterSpacing = 0.05f
