@@ -3,9 +3,12 @@ package org.jellyfin.androidtv.ui.browsing
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.view.KeyEvent
 import android.view.ViewGroup
+import androidx.leanback.widget.HorizontalGridView
 import androidx.lifecycle.lifecycleScope
 import org.jellyfin.androidtv.ui.home.HomePreviewView
+import org.jellyfin.androidtv.ui.home.HomeSideRail
 import android.widget.Toast
 import androidx.fragment.app.add
 import androidx.fragment.app.replace
@@ -24,6 +27,23 @@ class MainActivity : BaseActivity(R.layout.fragment_content_view) {
 	/** Preview of the focused card on the modern home screen (null with the classic layout). */
 	var homePreview: HomePreviewView? = null
 		private set
+	private var sideRail: HomeSideRail? = null
+
+	private fun homeFragment() = supportFragmentManager.fragments.firstOrNull { it is HomeFragment } as? HomeFragment
+
+	override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+		// Leanback rows keep the focus at their first card; pressing left there opens the side menu
+		val rail = sideRail
+		if (rail != null && event.action == KeyEvent.ACTION_DOWN && event.keyCode == KeyEvent.KEYCODE_DPAD_LEFT && !rail.hasFocus()) {
+			val focused = currentFocus
+			val row = focused?.parent as? HorizontalGridView
+			if (row != null && row.getChildAdapterPosition(focused) <= 0) {
+				rail.focusMenu()
+				return true
+			}
+		}
+		return super.dispatchKeyEvent(event)
+	}
 
 	private val backgroundService: BackgroundService by inject<BackgroundService>()
 
@@ -31,12 +51,24 @@ class MainActivity : BaseActivity(R.layout.fragment_content_view) {
 		super.onCreate(savedInstanceState)
 
 		if (get<UserPreferences>()[UserPreferences.modernHomeLayout]) {
+			val content = findViewById<ViewGroup>(R.id.content_view)
 			homePreview = HomePreviewView(this).also {
 				it.attach(lifecycleScope)
-				findViewById<ViewGroup>(R.id.content_view).addView(it, 0, ViewGroup.LayoutParams(
+				content.addView(it, 0, ViewGroup.LayoutParams(
 					ViewGroup.LayoutParams.MATCH_PARENT,
 					HomePreviewView.height(this),
 				))
+			}
+			// Side menu goes on top of everything once the fragments are in
+			content.post {
+				val rail = HomeSideRail(
+					this,
+					onHome = { homeFragment()?.scrollToTop() },
+					onLeave = { homeFragment()?.view?.requestFocus() },
+				)
+				content.addView(rail, HomeSideRail.layoutParams(this))
+				rail.load(lifecycleScope)
+				sideRail = rail
 			}
 		}
 

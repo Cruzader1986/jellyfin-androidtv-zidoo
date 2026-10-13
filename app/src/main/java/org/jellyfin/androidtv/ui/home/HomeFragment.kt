@@ -73,6 +73,13 @@ class HomeFragment : StdRowsFragment(), AudioEventListener {
 	}
 
 	private var homeSettingsUiHash: Int? = null
+	private val modernLayout get() = userPreferences[UserPreferences.modernHomeLayout]
+
+	/** Side menu "Home": back to the first row. */
+	fun scrollToTop() {
+		setSelectedPosition(0, true)
+		view?.requestFocus()
+	}
 
 	override fun onCreate(savedInstanceState: Bundle?) {
 		// get relevant settings hash for resume handling
@@ -92,6 +99,7 @@ class HomeFragment : StdRowsFragment(), AudioEventListener {
 			.setAllowParentFallback(userSettingPreferences[seriesThumbnailsEnabled])
 			.setPreferSeasonForEpisodes(userSettingPreferences[seriesThumbnailsEnabled])
 			.setPreferSeriesForEpisodes(userSettingPreferences[seriesThumbnailsEnabled])
+		mCardPresenter.mForceInfoType = modern
 
 		super.onCreate(savedInstanceState)
 
@@ -115,6 +123,11 @@ class HomeFragment : StdRowsFragment(), AudioEventListener {
 					// Rows start under the preview of the focused title
 					setMarginTop(HomePreviewView.height(requireContext()))
 					itemAlignmentOffset = 0
+					// Leave room for the side menu
+					(layoutParams as? ViewGroup.MarginLayoutParams)?.let {
+						it.leftMargin = HomeSideRail.collapsedWidth(requireActivity())
+						layoutParams = it
+					}
 				} else {
 					setMarginTop(resources.getDimensionPixelSize(R.dimen.safe_area_vertical))
 				}
@@ -234,8 +247,9 @@ class HomeFragment : StdRowsFragment(), AudioEventListener {
 	private fun addSection(type: HomeSectionType) {
 		when (type) {
 			HomeSectionType.LATEST_MEDIA -> rows.add(helper.loadRecentlyAdded(views!!))
-			HomeSectionType.LIBRARY_TILES_SMALL -> rows.add(helper.loadLibraryTiles())
-			HomeSectionType.LIBRARY_BUTTONS -> rows.add(helper.loadLibraryTiles(true))
+			// The modern layout lists the libraries in the side menu instead
+			HomeSectionType.LIBRARY_TILES_SMALL -> if (!modernLayout) rows.add(helper.loadLibraryTiles())
+			HomeSectionType.LIBRARY_BUTTONS -> if (!modernLayout) rows.add(helper.loadLibraryTiles(true))
 			HomeSectionType.RESUME -> rows.add(helper.loadResumeVideo())
 			HomeSectionType.RESUME_AUDIO -> rows.add(helper.loadResumeAudio())
 			HomeSectionType.RESUME_BOOK -> Unit // Books are not (yet) supported

@@ -12,6 +12,8 @@ import org.jellyfin.androidtv.ui.ToolbarView
 import org.jellyfin.androidtv.ui.preference.PreferencesActivity
 import org.jellyfin.androidtv.ui.search.SearchActivity
 import org.jellyfin.androidtv.ui.startup.StartupActivity
+import org.jellyfin.androidtv.preference.UserPreferences
+import org.koin.android.ext.android.get
 import org.koin.android.ext.android.inject
 
 class HomeToolbarFragment : Fragment() {
@@ -19,6 +21,8 @@ class HomeToolbarFragment : Fragment() {
 
 	override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
 		return ToolbarView(requireContext()).apply {
+			// The modern layout has these in the side menu, keep only the clock
+			if (get<UserPreferences>()[UserPreferences.modernHomeLayout]) return@apply
 
 			addButton(R.drawable.ic_search, R.string.lbl_search) {
 				val intent = Intent(activity, SearchActivity::class.java)
