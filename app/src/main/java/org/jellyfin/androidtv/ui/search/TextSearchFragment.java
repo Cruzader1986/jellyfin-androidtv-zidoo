@@ -73,7 +73,15 @@ public class TextSearchFragment extends Fragment implements TextWatcher, TextVie
 
         // Create click listener
         rowsSupportFragment.setOnItemViewClickedListener((itemViewHolder, item, rowViewHolder, row) -> {
+            if (item instanceof RecentSearchItem) {
+                String query = ((RecentSearchItem) item).getQuery();
+                searchBar.setText(query);
+                searchBar.setSelection(query.length());
+                searchProvider.onQueryTextSubmit(query);
+                return;
+            }
             if (!(item instanceof BaseRowItem)) return;
+            searchProvider.rememberCurrentQuery();
 
             ItemLauncher.launch((BaseRowItem) item, (ItemRowAdapter) ((ListRow) row).getAdapter(), ((BaseRowItem) item).getIndex(), getActivity());
         });

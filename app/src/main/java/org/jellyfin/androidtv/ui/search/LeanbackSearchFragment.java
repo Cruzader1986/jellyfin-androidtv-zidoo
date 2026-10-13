@@ -19,6 +19,7 @@ public class LeanbackSearchFragment extends SearchSupportFragment {
     protected CompositeSelectedListener mSelectedListener = new CompositeSelectedListener();
 
     private Lazy<BackgroundService> backgroundService = inject(BackgroundService.class);
+    private SearchProvider searchProvider;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -27,12 +28,17 @@ public class LeanbackSearchFragment extends SearchSupportFragment {
         backgroundService.getValue().attach(requireActivity());
 
         // Create provider
-        SearchProvider searchProvider = new SearchProvider(getContext(), getLifecycle());
+        searchProvider = new SearchProvider(getContext(), getLifecycle());
         setSearchResultProvider(searchProvider);
 
         // Create click listener
         setOnItemViewClickedListener((itemViewHolder, item, rowViewHolder, row) -> {
+            if (item instanceof RecentSearchItem) {
+                setSearchQuery(((RecentSearchItem) item).getQuery(), true);
+                return;
+            }
             if (!(item instanceof BaseRowItem)) return;
+            searchProvider.rememberCurrentQuery();
 
             ItemLauncher.launch((BaseRowItem) item, (ItemRowAdapter) ((ListRow) row).getAdapter(), ((BaseRowItem) item).getIndex(), getActivity());
         });

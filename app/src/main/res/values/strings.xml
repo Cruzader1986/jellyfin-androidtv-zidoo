@@ -679,4 +679,5 @@
     <string name="msg_waking_server">%1$s is asleep, waking it up…</string>
     <string name="msg_server_awake">%1$s is awake</string>
     <string name="msg_server_wake_failed">%1$s did not wake up</string>
+    <string name="lbl_recent_searches">Recent searches</string>
 </resources>
