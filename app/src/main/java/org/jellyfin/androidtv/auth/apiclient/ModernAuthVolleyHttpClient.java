@@ -42,7 +42,7 @@ public class ModernAuthVolleyHttpClient extends VolleyHttpClient {
 		}
 
 		// Use the current (Jellyfin 10.9+) routes instead of the obsolete /Users/{userId}/... ones when supported
-		final String url = LegacyRouteRewriter.rewrite(request.getUrl());
+		final String url = addRecursiveItemCount(LegacyRouteRewriter.rewrite(request.getUrl()));
 
 		StringRequest req = new ModernAuthStringRequest(method,
 				url,
@@ -65,6 +65,22 @@ public class ModernAuthVolleyHttpClient extends VolleyHttpClient {
 		));
 
 		addToRequestQueue(req);
+	}
+
+	private static final java.util.regex.Pattern FIELDS_PARAM = java.util.regex.Pattern.compile("([?&][Ff]ields=)([^&#]*)");
+
+	/**
+	 * Ask for RecursiveItemCount whenever fields are requested, so series/season cards can show how
+	 * much has been watched (the server only fills UserData.PlayedPercentage with it).
+	 */
+	static String addRecursiveItemCount(String url) {
+		if (url == null) return null;
+		java.util.regex.Matcher matcher = FIELDS_PARAM.matcher(url);
+		if (!matcher.find()) return url;
+		String value = matcher.group(2);
+		if (value.toLowerCase(java.util.Locale.ROOT).contains("recursiveitemcount")) return url;
+		String separator = value.isEmpty() ? "" : (value.contains(",") ? "," : "%2C");
+		return url.substring(0, matcher.end(2)) + separator + "RecursiveItemCount" + url.substring(matcher.end(2));
 	}
 
 	static class ModernAuthStringRequest extends VolleyStringRequest {

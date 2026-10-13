@@ -179,8 +179,12 @@ public class CardPresenter extends Presenter {
                                 mCardView.setUnwatchedCount(-1);
                         }
                     }
+                    int seriesProgress = getSeriesProgress(itemDto, userData);
                     if (showProgress && itemDto.getRunTimeTicks() != null && itemDto.getRunTimeTicks() > 0 && userData != null && userData.getPlaybackPositionTicks() > 0) {
                         mCardView.setProgress(((int) (userData.getPlaybackPositionTicks() * 100.0 / itemDto.getRunTimeTicks()))); // force floating pt math with 100.0
+                    } else if (showProgress && seriesProgress > 0) {
+                        // Series/season: share of episodes watched
+                        mCardView.setProgress(seriesProgress);
                     } else {
                         mCardView.setProgress(0);
                     }
@@ -530,5 +534,24 @@ public class CardPresenter extends Presenter {
     public CardPresenter setSquareAspect(boolean isSquare) {
         mSquareAspect = isSquare;
         return this;
+    }
+
+    /**
+     * Watched share (1-99) of a series or season, 0 when unknown, not started or finished.
+     */
+    private static int getSeriesProgress(BaseItemDto item, UserItemDataDto userData) {
+        if (item == null || userData == null || userData.getPlayed()) return 0;
+        BaseItemType type = item.getBaseItemType();
+        if (type != BaseItemType.Series && type != BaseItemType.Season) return 0;
+
+        double percent = 0;
+        if (userData.getPlayedPercentage() != null) {
+            percent = userData.getPlayedPercentage();
+        } else if (item.getRecursiveItemCount() != null && item.getRecursiveItemCount() > 0 && userData.getUnplayedItemCount() != null) {
+            int total = item.getRecursiveItemCount();
+            percent = (total - Math.min(total, userData.getUnplayedItemCount())) * 100.0 / total;
+        }
+        int rounded = (int) Math.round(percent);
+        return rounded > 0 && rounded < 100 ? Math.max(rounded, 2) : 0;
     }
 }
