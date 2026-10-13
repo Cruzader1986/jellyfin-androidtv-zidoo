@@ -46,6 +46,9 @@ class HomePreviewView(context: Context) : FrameLayout(context), KoinComponent {
 	private val density = resources.displayMetrics.density
 	private fun dp(value: Int) = (value * density).toInt()
 
+	private val backdrop = ImageView(context).apply {
+		scaleType = ImageView.ScaleType.CENTER_CROP
+	}
 	private val logo = ImageView(context).apply {
 		scaleType = ImageView.ScaleType.FIT_START
 		adjustViewBounds = true
@@ -98,6 +101,7 @@ class HomePreviewView(context: Context) : FrameLayout(context), KoinComponent {
 	private var currentId: String? = null
 
 	init {
+		addView(backdrop, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
 		// Readable text over any backdrop: dark on the left and at the bottom
 		addView(View(context).apply {
 			background = GradientDrawable(
@@ -139,6 +143,7 @@ class HomePreviewView(context: Context) : FrameLayout(context), KoinComponent {
 	fun clear() {
 		job?.cancel()
 		currentId = null
+		Glide.with(this).clear(backdrop)
 		logo.visibility = GONE
 		title.text = ""
 		subtitle.visibility = GONE
@@ -182,6 +187,17 @@ class HomePreviewView(context: Context) : FrameLayout(context), KoinComponent {
 
 	private fun bind(item: BaseItemDto) {
 		val isEpisode = item.type == BaseItemKind.EPISODE
+
+		// Backdrop: the item's own, else its series' / parent's
+		val backdropUrl = item.backdropImageTags?.firstOrNull()?.let { backdropUrl(item.id, it) }
+			?: item.parentBackdropItemId?.let { id -> item.parentBackdropImageTags?.firstOrNull()?.let { backdropUrl(id, it) } }
+		if (backdropUrl != null) {
+			Glide.with(this).load(backdropUrl)
+				.transition(com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions.withCrossFade(300))
+				.into(backdrop)
+		} else {
+			Glide.with(this).clear(backdrop)
+		}
 
 		// Logo: the item's own, or the series' one for episodes
 		val logoUrl = item.imageTags?.get(ImageType.LOGO)?.let { logoUrl(item.id, it) }
@@ -234,6 +250,9 @@ class HomePreviewView(context: Context) : FrameLayout(context), KoinComponent {
 			progressRow.visibility = GONE
 		}
 	}
+
+	private fun backdropUrl(id: UUID, tag: String) =
+		api.imageApi.getItemImageUrl(itemId = id, imageType = ImageType.BACKDROP, tag = tag, maxWidth = 1280, quality = 85)
 
 	private fun logoUrl(id: UUID, tag: String) =
 		api.imageApi.getItemImageUrl(itemId = id, imageType = ImageType.LOGO, tag = tag, maxHeight = dp(90) * 2)

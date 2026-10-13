@@ -64,7 +64,16 @@ class MainActivity : BaseActivity(R.layout.fragment_content_view) {
 				val rail = HomeSideRail(
 					this,
 					onHome = { homeFragment()?.scrollToTop() },
-					onLeave = { homeFragment()?.view?.requestFocus() },
+					onLeave = {
+						val grid = homeFragment()?.view
+						if (grid?.requestFocus() != true) (grid as? ViewGroup)?.getChildAt(0)?.requestFocus()
+					},
+					onExpandedChanged = { _, extraWidth ->
+						// Push the home content aside instead of covering it
+						listOfNotNull(homePreview, homeFragment()?.view).forEach {
+							it.animate().translationX(extraWidth.toFloat()).setDuration(180).start()
+						}
+					},
 				)
 				content.addView(rail, HomeSideRail.layoutParams(this))
 				rail.load(lifecycleScope)

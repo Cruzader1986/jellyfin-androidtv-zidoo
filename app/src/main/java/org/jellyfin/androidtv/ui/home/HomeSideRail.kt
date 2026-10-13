@@ -40,6 +40,7 @@ class HomeSideRail(
 	private val activity: Activity,
 	private val onHome: () -> Unit,
 	private val onLeave: () -> Unit,
+	private val onExpandedChanged: (expanded: Boolean, extraWidthPx: Int) -> Unit,
 ) : FrameLayout(activity), KoinComponent {
 	private val api by inject<ApiClient>()
 	private val sessionRepository by inject<SessionRepository>()
@@ -68,7 +69,7 @@ class HomeSideRail(
 		addItem(topItems, R.drawable.ic_search, R.string.lbl_search) {
 			activity.startActivity(Intent(activity, SearchActivity::class.java))
 		}
-		addItem(topItems, R.drawable.ic_house, R.string.lbl_rail_home) { onHome() }
+		addItem(topItems, R.drawable.ic_house, R.string.lbl_rail_home) { onHome() }.isSelected = true
 		addItem(bottomItems, R.drawable.ic_settings, R.string.lbl_rail_settings) {
 			activity.startActivity(Intent(activity, PreferencesActivity::class.java))
 		}
@@ -115,35 +116,43 @@ class HomeSideRail(
 		activity.finishAfterTransition()
 	}
 
-	private fun addItem(parent: LinearLayout, @DrawableRes icon: Int, label: Int, onClick: () -> Unit) =
+	private fun addItem(parent: LinearLayout, @DrawableRes icon: Int, label: Int, onClick: () -> Unit): View =
 		addItem(parent, icon, context.getString(label), onClick)
 
-	private fun addItem(parent: LinearLayout, @DrawableRes icon: Int, label: String, onClick: () -> Unit) {
+	private fun addItem(parent: LinearLayout, @DrawableRes icon: Int, label: String, onClick: () -> Unit): View {
 		val colors = ColorStateList(
-			arrayOf(intArrayOf(android.R.attr.state_focused), intArrayOf()),
-			intArrayOf(Color.rgb(11, 13, 18), Color.rgb(174, 182, 196)),
+			arrayOf(intArrayOf(android.R.attr.state_focused), intArrayOf(android.R.attr.state_selected), intArrayOf()),
+			intArrayOf(Color.rgb(11, 13, 18), Color.WHITE, Color.rgb(174, 182, 196)),
 		)
+		fun pill(color: Int) = GradientDrawable().apply {
+			cornerRadius = dp(12).toFloat()
+			setColor(color)
+		}
 		val item = LinearLayout(context).apply {
 			orientation = LinearLayout.HORIZONTAL
 			gravity = Gravity.CENTER_VERTICAL
 			isFocusable = true
-			isFocusableInTouchMode = true
+			// Mouse / touch: one click opens the entry instead of only focusing it
+			isFocusableInTouchMode = false
+			isClickable = true
 			setPadding(dp(14), 0, dp(14), 0)
 			contentDescription = label
 			background = StateListDrawable().apply {
-				addState(intArrayOf(android.R.attr.state_focused), GradientDrawable().apply {
-					cornerRadius = dp(12).toFloat()
-					setColor(Color.rgb(242, 244, 248))
-				})
+				addState(intArrayOf(android.R.attr.state_focused), pill(Color.rgb(242, 244, 248)))
+				addState(intArrayOf(android.R.attr.state_pressed), pill(Color.argb(160, 242, 244, 248)))
+				addState(intArrayOf(android.R.attr.state_selected), pill(Color.argb(46, 255, 255, 255)))
 			}
 			setOnClickListener { onClick() }
 			setOnKeyListener { _, keyCode, event ->
-				if (keyCode == android.view.KeyEvent.KEYCODE_DPAD_RIGHT && event.action == android.view.KeyEvent.ACTION_DOWN) {
-					onLeave()
-					true
-				} else false
+				if (event.action != android.view.KeyEvent.ACTION_DOWN) return@setOnKeyListener false
+				when (keyCode) {
+					android.view.KeyEvent.KEYCODE_DPAD_RIGHT, android.view.KeyEvent.KEYCODE_BACK -> {
+						onLeave()
+						true
+					}
+					else -> false
+				}
 			}
-			setOnFocusChangeListener { _, _ -> post { setExpanded(this@HomeSideRail.hasFocus()) } }
 		}
 		item.addView(ImageView(context).apply {
 			setImageResource(icon)
@@ -162,6 +171,23 @@ class HomeSideRail(
 		labels += text
 		item.addView(text)
 		parent.addView(item, LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, dp(48)).apply { bottomMargin = dp(4) })
+		return item
+	}
+
+	private val focusListener = android.view.ViewTreeObserver.OnGlobalFocusChangeListener { _, _ ->
+		val focused = hasFocus()
+		if (focused != expanded) setExpanded(focused)
+	}
+
+	override fun onAttachedToWindow() {
+		super.onAttachedToWindow()
+		viewTreeObserver.addOnGlobalFocusChangeListener(focusListener)
+		setExpanded(hasFocus())
+	}
+
+	override fun onDetachedFromWindow() {
+		viewTreeObserver.removeOnGlobalFocusChangeListener(focusListener)
+		super.onDetachedFromWindow()
 	}
 
 	/** Move the focus into the menu, on its Home entry. */
@@ -170,7 +196,9 @@ class HomeSideRail(
 	}
 
 	private fun setExpanded(value: Boolean) {
+		val changed = value != expanded
 		expanded = value
+		if (changed) onExpandedChanged(value, if (value) (EXPANDED_WIDTH_DP - COLLAPSED_WIDTH_DP).toPx() else 0)
 		labels.forEach { it.visibility = if (value) VISIBLE else GONE }
 		layoutParams?.let {
 			it.width = if (value) EXPANDED_WIDTH_DP.toPx() else COLLAPSED_WIDTH_DP.toPx()
