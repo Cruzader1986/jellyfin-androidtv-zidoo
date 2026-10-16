@@ -54,9 +54,10 @@ class MainActivity : BaseActivity(R.layout.fragment_content_view) {
 			val content = findViewById<ViewGroup>(R.id.content_view)
 			homePreview = HomePreviewView(this).also {
 				it.attach(lifecycleScope)
+				// Full screen behind the rows: the backdrop fills it uncropped, the details use the top part
 				content.addView(it, 0, ViewGroup.LayoutParams(
 					ViewGroup.LayoutParams.MATCH_PARENT,
-					HomePreviewView.height(this),
+					ViewGroup.LayoutParams.MATCH_PARENT,
 				))
 			}
 			// Side menu goes on top of everything once the fragments are in

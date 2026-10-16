@@ -8,6 +8,7 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.core.view.ViewCompat
 import androidx.leanback.widget.ArrayObjectAdapter
+import androidx.leanback.widget.BaseGridView
 import androidx.leanback.widget.ClassPresenterSelector
 import androidx.leanback.widget.OnItemViewSelectedListener
 import androidx.leanback.widget.Presenter
@@ -40,6 +41,7 @@ import org.jellyfin.androidtv.ui.playback.MediaManager
 import org.jellyfin.androidtv.ui.presentation.CardPresenter
 import org.jellyfin.androidtv.util.LayoutHelper
 import org.jellyfin.androidtv.util.apiclient.callApi
+import org.jellyfin.androidtv.util.sdk.compat.asSdk
 import org.jellyfin.androidtv.util.setMarginTop
 import org.jellyfin.apiclient.interaction.ApiClient
 import org.jellyfin.apiclient.model.livetv.RecommendedProgramQuery
@@ -74,6 +76,8 @@ class HomeFragment : StdRowsFragment(), AudioEventListener {
 
 	private var homeSettingsUiHash: Int? = null
 	private val modernLayout get() = userPreferences[UserPreferences.modernHomeLayout]
+	/** Gap between rows on the modern home. */
+	private val modernRowGapPx get() = (10 * resources.displayMetrics.density).toInt()
 
 	/** Side menu "Home": back to the first row. */
 	fun scrollToTop() {
@@ -86,9 +90,14 @@ class HomeFragment : StdRowsFragment(), AudioEventListener {
 		homeSettingsUiHash = userSettingPreferences.getUiSettingsHash() + userPreferences.getUiSettingsHash()
 
 		// Create adapter/presenter and set it to parent
-		mRowsAdapter = ArrayObjectAdapter(LayoutHelper.buildDefaultRowPresenterSelector(
-			userSettingPreferences[homeSize].value,
-			resources.getDimensionPixelSize(R.dimen.safe_area_vertical))
+		mRowsAdapter = ArrayObjectAdapter(
+			if (modernLayout) LayoutHelper.buildModernHomeRowPresenterSelector(
+				resources.displayMetrics.heightPixels - HomePreviewView.height(requireContext()),
+				modernRowGapPx,
+			)
+			else LayoutHelper.buildDefaultRowPresenterSelector(
+				userSettingPreferences[homeSize].value,
+				resources.getDimensionPixelSize(R.dimen.safe_area_vertical))
 		)
 		(mRowsAdapter.presenterSelector as? ClassPresenterSelector)?.addClassPresenter(FeaturedRow::class.java, FeaturedRowPresenter())
 		adapter = mRowsAdapter
@@ -123,6 +132,17 @@ class HomeFragment : StdRowsFragment(), AudioEventListener {
 					// Rows start under the preview of the focused title
 					setMarginTop(HomePreviewView.height(requireContext()))
 					itemAlignmentOffset = 0
+					verticalSpacing = modernRowGapPx
+					// The first three rows fit on screen, so moving between them shouldn't scroll anything.
+					// Put the focus line at the third row and stop at the edges: the list only scrolls once
+					// you go past the rows that are already visible.
+					val density = resources.displayMetrics.density
+					val available = resources.displayMetrics.heightPixels - HomePreviewView.height(requireContext())
+					val rowSlot = (available - (8 * density).toInt() - 2 * modernRowGapPx) / 3
+					windowAlignment = BaseGridView.WINDOW_ALIGN_BOTH_EDGE
+					windowAlignmentOffsetPercent = BaseGridView.WINDOW_ALIGN_OFFSET_PERCENT_DISABLED
+					windowAlignmentOffset = 2 * (rowSlot + modernRowGapPx) + (30 * density).toInt()
+					itemAlignmentOffsetPercent = 0f
 					// Leave room for the side menu
 					(layoutParams as? ViewGroup.MarginLayoutParams)?.let {
 						it.leftMargin = HomeSideRail.collapsedWidth(requireActivity())
@@ -174,7 +194,7 @@ class HomeFragment : StdRowsFragment(), AudioEventListener {
 			override fun onItemSelected(itemViewHolder: Presenter.ViewHolder?, item: Any?, rowViewHolder: RowPresenter.ViewHolder?, row: Row?) {
 				val preview = (activity as? MainActivity)?.homePreview ?: return
 				val baseItem = (item as? BaseRowItem)?.baseItem
-				if (baseItem?.id != null) preview.show(baseItem.id, baseItem.name)
+				if (baseItem?.id != null) preview.show(baseItem.id, baseItem.name, baseItem.asSdk())
 				else preview.clear()
 			}
 		})

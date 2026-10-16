@@ -49,7 +49,9 @@ public class LeanbackSearchFragment extends SearchSupportFragment {
                 backgroundService.getValue().clearBackgrounds();
             } else {
                 BaseRowItem rowItem = (BaseRowItem) item;
-                backgroundService.getValue().setBackground(rowItem.getSearchHint());
+                // Results are regular items now (not search hints)
+                if (rowItem.getSearchHint() != null) backgroundService.getValue().setBackground(rowItem.getSearchHint());
+                else backgroundService.getValue().setBackground(rowItem.getBaseItem());
             }
         });
     }

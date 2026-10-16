@@ -11,6 +11,10 @@ public class PositionableListRowPresenter extends CustomListRowPresenter {
         super(rowHeightPx, headerHeightPx);
     }
 
+    public PositionableListRowPresenter(int rowHeightPx, int headerHeightPx, int headerGapPx, int minCardSpacingPx) {
+        super(rowHeightPx, headerHeightPx, headerGapPx, minCardSpacingPx);
+    }
+
     public void setPosition(int ndx) {
         Timber.d("Setting position to: %d", ndx);
 

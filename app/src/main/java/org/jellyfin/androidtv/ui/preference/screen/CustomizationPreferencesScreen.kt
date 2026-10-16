@@ -53,6 +53,14 @@ class CustomizationPreferencesScreen : OptionsFragment() {
 				bind(userPreferences, UserPreferences.modernHomeLayout)
 			}
 
+			link {
+				setTitle(R.string.pref_side_menu)
+				setContent(R.string.pref_side_menu_link_description)
+				icon = R.drawable.ic_house
+				withFragment<SideMenuPreferencesScreen>()
+				depends { userPreferences[UserPreferences.modernHomeLayout] }
+			}
+
 			checkbox {
 				setTitle(R.string.pref_featured_banner)
 				setContent(R.string.pref_featured_banner_description)

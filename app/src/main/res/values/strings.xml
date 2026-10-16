@@ -682,6 +682,12 @@
     <string name="lbl_recent_searches">Recent searches</string>
     <string name="pref_modern_home">Modern home layout</string>
     <string name="pref_modern_home_description">Large preview of the focused title on top, artwork-only cards below</string>
+    <string name="pref_side_menu">Side menu items</string>
+    <string name="pref_side_menu_link_description">Choose which entries show in the home screen side menu</string>
+    <string name="pref_side_menu_description">Show in the side menu</string>
+    <string name="pref_side_menu_home_always">Always shown</string>
+    <string name="lbl_rail_edit_hint">Editing menu: OK shows or hides an entry, Back when done</string>
+    <string name="lbl_rail_hidden">hidden</string>
     <string name="lbl_rail_home">Home</string>
     <string name="lbl_rail_settings">Settings</string>
 </resources>

@@ -82,6 +82,35 @@ object LayoutHelper {
         }
     }
 
+    /**
+     * Rows for the modern home: they live in [availableHeightPx] under the preview, so size them
+     * for that space (three poster rows with gaps between them) instead of the whole screen,
+     * and leave room between the row titles and the cards.
+     */
+    fun buildModernHomeRowPresenterSelector(availableHeightPx: Int, rowGapPx: Int): ClassPresenterSelector {
+        return JellyfinApplication.appContext.resources.let { res ->
+            val density = res.displayMetrics.density
+            val rows = 3
+            // The focused card grows by up to ~18% (focus zoom), about 8dp past its top and bottom edge,
+            // so the gap under the row title has to be wider than that or the zoomed card covers the title
+            val headerHeightPx = (30 * density).toInt()
+            val headerGapPx = (12 * density).toInt()
+            val cardSpacingPx = (12 * density).toInt()
+            val posterHeightPx = (availableHeightPx - (8 * density).toInt() - (rows - 1) * rowGapPx) / rows - headerHeightPx
+            // Wide cards (live TV and the like) keep the same height so every row lines up
+            val thumbHeightPx = posterHeightPx
+            val smallHeightPx = (posterHeightPx * 0.6).toInt()
+
+            fun presenter(height: Int) = PositionableListRowPresenter(height, headerHeightPx, headerGapPx, cardSpacingPx)
+            ClassPresenterSelector().apply {
+                addClassPresenter(ListRow::class.java, presenter(posterHeightPx))
+                addClassPresenter(ThumbListRow::class.java, presenter(thumbHeightPx))
+                addClassPresenter(SmallListRow::class.java, presenter(smallHeightPx))
+                addClassPresenter(SmallListRowAbs::class.java, presenter(smallHeightPx))
+            }
+        }
+    }
+
     fun estimateCardsOnScreen(numColRows: Int, gridDirection: GridDirection, aspect: Double, cardSpacingPx: Int, extraVMarginPx: Int = 0): Int {
         return JellyfinApplication.appContext.resources.let { res ->
             when (gridDirection) {

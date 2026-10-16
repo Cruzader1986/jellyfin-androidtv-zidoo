@@ -45,8 +45,8 @@ jobs:
         run: |
           VERSION_ARG=""
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
-            # tag v0.15.1 -> app version 0.15.1-zidoo_edition
-            VERSION_ARG="-Pjellyfin.version=${GITHUB_REF_NAME#v}-zidoo_edition"
+            # tag v0.15.1 -> app version 0.15.1
+            VERSION_ARG="-Pjellyfin.version=${GITHUB_REF_NAME#v}"
           fi
           ./gradlew --no-daemon assembleRelease $VERSION_ARG
       - name: Upload APK

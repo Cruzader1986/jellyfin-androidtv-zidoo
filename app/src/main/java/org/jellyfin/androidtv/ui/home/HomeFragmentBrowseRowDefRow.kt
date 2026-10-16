@@ -23,18 +23,24 @@ class HomeFragmentBrowseRowDefRow(
 	override fun addToRowsAdapter(context: Context, presenter: CardPresenter, rowsAdapter: ArrayObjectAdapter) {
 
 		var presenterX = presenter
-		val infoType = if (presenter.mForceInfoType) presenter.mInfoType else cardInfoType
-		if (infoType != presenter.mInfoType || cardImageType != presenter.mImageType)
+		// Modern home (forced info type): portrait covers everywhere, also for Continue Watching / Next Up
+		val modern = presenter.mForceInfoType
+		val infoType = if (modern) presenter.mInfoType else cardInfoType
+		val imageType = if (modern && cardImageType == ImageType.THUMB) ImageType.POSTER else cardImageType
+		val rowType = if (modern && rowClass == ThumbListRow::class) ListRow::class else rowClass
+		if (infoType != presenter.mInfoType || imageType != presenter.mImageType)
 			presenterX = CardPresenter(presenter).apply {
 				mInfoType = infoType
-				mImageType = cardImageType
+				mImageType = imageType
+				// An episode's own image is a 16:9 still, show its series' (or season's) poster instead
+				if (imageType == ImageType.POSTER && modern && !mPreferSeasonForEpisodes) mPreferSeriesForEpisodes = true
 			}
 
 		val rowAdapter = ItemRowAdapter.buildItemRowAdapter(context, browseRowDef, presenterX, rowsAdapter)
 		rowAdapter.setReRetrieveTriggers(browseRowDef.changeTriggers)
 
 		val header = HeaderItem(browseRowDef.headerText)
-		val row = when (rowClass) {
+		val row = when (rowType) {
 			ThumbListRow::class -> ThumbListRow(header, rowAdapter)
 			SmallListRow::class -> SmallListRow(header, rowAdapter)
 			SmallListRowAbs::class -> SmallListRowAbs(header, rowAdapter)
